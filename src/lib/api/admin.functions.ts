@@ -2,33 +2,15 @@
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 
+import { requireAdminSession } from "@/lib/auth.server";
+import { localDb } from "@/lib/database.server";
+
 async function admin() {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const request = getRequest();
-  const authHeader = request.headers.get("authorization") ?? "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
-  if (!token) throw new Error("NÃ£o autenticado");
-
-  const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
-  if (authError || !authData.user) throw new Error("SessÃ£o invÃ¡lida");
-
-  const { data: role, error: roleError } = await supabaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", authData.user.id)
-    .eq("role", "admin")
-    .maybeSingle();
-  if (roleError || !role) throw new Error("Acesso restrito a administradores");
-
-  return supabaseAdmin;
+  requireAdminSession();
+  return localDb;
 }
 
 const uuid = z.string().uuid();
-
-export const getAdminSession = createServerFn({ method: "GET" }).handler(async () => {
-  await admin();
-  return { ok: true };
-});
 
 /* ------------------------------- Uploads --------------------------------- */
 
@@ -64,7 +46,10 @@ export const uploadMedia = createServerFn({ method: "POST" })
     if (data.visibility === "private") return { url: `private://${key}` };
 
     // URL pÃºblica estÃ¡vel servida pela rota /api/public/media/*
-    const origin = new URL(getRequest().url).origin;
+    const origin = (process.env.PUBLIC_BASE_URL ?? new URL(getRequest().url).origin).replace(
+      /\/$/,
+      "",
+    );
     return { url: `${origin}/api/public/media/${key}` };
   });
 

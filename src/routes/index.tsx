@@ -1,12 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
+import { createAdminAccount, getAuthStatus, loginAdminAccount } from "@/lib/api/auth.functions";
 
 export const Route = createFileRoute("/")({ component: LoginPage });
 
@@ -35,8 +36,23 @@ function validateNewPassword(password: string, confirmation: string) {
 
 function LoginPage() {
   const navigate = useNavigate();
+  const statusFn = useServerFn(getAuthStatus);
+  const loginFn = useServerFn(loginAdminAccount);
+  const createFn = useServerFn(createAdminAccount);
   const [loading, setLoading] = useState(false);
   const [createAccount, setCreateAccount] = useState(false);
+  const [hasAdmin, setHasAdmin] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    void statusFn().then((status) => {
+      if (status.authenticated) {
+        void navigate({ to: "/dashboard" });
+        return;
+      }
+      setHasAdmin(status.hasAdmin);
+      setCreateAccount(!status.hasAdmin);
+    });
+  }, [navigate, statusFn]);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -52,22 +68,18 @@ function LoginPage() {
       }
     }
     setLoading(true);
-
-    const result = createAccount
-      ? await supabase.auth.signUp({ email, password })
-      : await supabase.auth.signInWithPassword({ email, password });
-
-    setLoading(false);
-    if (result.error) {
-      toast.error(getAuthErrorMessage(result.error));
-      return;
+    try {
+      if (createAccount) {
+        await createFn({ data: { email, password } });
+      } else {
+        await loginFn({ data: { email, password } });
+      }
+      await navigate({ to: "/dashboard" });
+    } catch (error) {
+      toast.error(getAuthErrorMessage(error as Error));
+    } finally {
+      setLoading(false);
     }
-    if (!result.data.session) {
-      toast.success("Conta criada. Confirme o e-mail antes de entrar.");
-      setCreateAccount(false);
-      return;
-    }
-    await navigate({ to: "/dashboard" });
   }
 
   return (
@@ -118,13 +130,15 @@ function LoginPage() {
             {loading ? "Aguarde..." : createAccount ? "Criar conta" : "Entrar"}
           </Button>
         </form>
-        <Button
-          className="mt-3 w-full"
-          variant="ghost"
-          onClick={() => setCreateAccount((value) => !value)}
-        >
-          {createAccount ? "Já tenho conta" : "Criar primeira conta"}
-        </Button>
+        {hasAdmin === false ? (
+          <Button
+            className="mt-3 w-full"
+            variant="ghost"
+            onClick={() => setCreateAccount((value) => !value)}
+          >
+            {createAccount ? "Já tenho conta" : "Criar primeira conta"}
+          </Button>
+        ) : null}
       </Card>
     </main>
   );

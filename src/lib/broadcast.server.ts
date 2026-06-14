@@ -36,7 +36,7 @@ function buildKeyboard(buttons: BroadcastButton[]): InlineKeyboard | undefined {
 }
 
 // Delivers a single broadcast to all users and stamps last_sent_at.
-// `sb` is the admin supabase client. Returns the number of users reached.
+// Returns the number of users reached.
 export async function sendBroadcast(sb: any, b: BroadcastRow): Promise<number> {
   const { data: users } = await sb.from("users").select("telegram_id");
   const recipients = (users ?? [])

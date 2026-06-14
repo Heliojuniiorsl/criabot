@@ -1,5 +1,6 @@
 import { type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import {
   LayoutDashboard,
   CreditCard,
@@ -11,7 +12,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { logoutAdminAccount } from "@/lib/api/auth.functions";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -27,9 +28,10 @@ const nav = [
 export function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
+  const logoutFn = useServerFn(logoutAdminAccount);
 
   async function signOut() {
-    await supabase.auth.signOut();
+    await logoutFn();
     await navigate({ to: "/" });
   }
 

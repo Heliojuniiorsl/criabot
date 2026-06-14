@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { getMercadoPagoPayment, validateMercadoPagoSignature } from "@/lib/mercado-pago.server";
+import { localDb } from "@/lib/database.server";
 
 const orderIdSchema = z.string().uuid();
 
@@ -33,9 +34,8 @@ export const Route = createFileRoute("/api/public/payments/webhook")({
           const payment = await getMercadoPagoPayment(dataId);
           const orderId = orderIdSchema.parse(payment.external_reference);
 
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           if (payment.status !== "approved") {
-            await supabaseAdmin
+            await localDb
               .from("payments")
               .update({ raw_status: payment.status })
               .eq("order_id", orderId);
@@ -44,7 +44,7 @@ export const Route = createFileRoute("/api/public/payments/webhook")({
           if (payment.currency_id !== "BRL") throw new Error("Moeda inesperada no pagamento");
 
           const { fulfillOrder } = await import("@/lib/fulfillment.server");
-          await fulfillOrder(supabaseAdmin, {
+          await fulfillOrder(localDb, {
             orderId,
             providerPaymentId: String(payment.id),
             providerStatus: payment.status_detail,

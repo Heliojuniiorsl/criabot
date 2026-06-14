@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+
+import { localDb } from "@/lib/database.server";
 import { timingSafeEqual } from "node:crypto";
 
 // Cron endpoint: delivers automated messages whose interval has elapsed.
@@ -19,9 +21,8 @@ export const Route = createFileRoute("/api/public/broadcasts/run")({
           return new Response("Unauthorized", { status: 401 });
         }
 
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { runDueBroadcasts } = await import("@/lib/broadcast.server");
-        const result = await runDueBroadcasts(supabaseAdmin);
+        const result = await runDueBroadcasts(localDb);
         return Response.json({ ok: true, ...result });
       },
     },

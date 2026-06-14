@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createHash, timingSafeEqual } from "crypto";
 
+import { localDb } from "@/lib/database.server";
+
 import {
   sendMessage,
   sendPhoto,
@@ -52,8 +54,7 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
         }
 
         const update = await request.json();
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const sb = supabaseAdmin;
+        const sb = localDb;
 
         const updateId = Number(update.update_id);
         if (Number.isFinite(updateId)) {
@@ -216,7 +217,7 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
             await render(target, "Nenhum plano disponível no momento.", backMenu);
             return;
           }
-          const keyboard: InlineKeyboard = plans.map((p) => [
+          const keyboard: InlineKeyboard = plans.map((p: any) => [
             { text: `💎 ${p.name} — ${fmtPrice(p.price)}`, callback_data: `plan_${p.id}` },
           ]);
           keyboard.push([{ text: "⬅️ Menu", callback_data: "menu" }]);
@@ -256,7 +257,7 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
             return;
           }
           const icon: Record<string, string> = { foto: "🖼️", video: "🎬", pacote: "📦" };
-          const keyboard: InlineKeyboard = contents.map((c) => [
+          const keyboard: InlineKeyboard = contents.map((c: any) => [
             {
               text: `${icon[c.type] ?? "🖼️"} ${c.title} — ${fmtPrice(c.price)}`,
               callback_data: `content_${c.id}`,
