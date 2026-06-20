@@ -1151,7 +1151,7 @@ function premiumOfferInlineRow(telegramUserId?: number): InlineKeyboard[number] 
 const mediaActions = (
   mediaId: string,
   favorited = false,
-  _isAdmin = false,
+  isAdmin = false,
   telegramUserId?: number,
 ): InlineKeyboard => {
   const actions: InlineKeyboard[number] = [
@@ -1160,6 +1160,12 @@ const mediaActions = (
       callback_data: favorited ? `iunfav:${mediaId}` : `ifav:${mediaId}`,
     },
   ];
+  if (isAdmin) {
+    actions.push({
+      text: "Excluir",
+      callback_data: `idel:ask:${favorited ? "v" : "r"}:${mediaId}`,
+    });
+  }
   const premiumRow = premiumOfferInlineRow(telegramUserId);
   return premiumRow ? [actions, premiumRow] : [actions];
 };
@@ -1327,7 +1333,7 @@ const favoriteNavigation = (
   mediaId: string,
   index: number,
   total: number,
-  _isAdmin = false,
+  isAdmin = false,
   telegramUserId?: number,
 ): InlineKeyboard => {
   const keyboard: InlineKeyboard = [
@@ -1338,6 +1344,9 @@ const favoriteNavigation = (
     ],
     [{ text: "💔 Remover favorito", callback_data: `frem:ask:${mediaId}` }],
   ];
+  if (isAdmin) {
+    keyboard.push([{ text: "Excluir", callback_data: `idel:ask:f:${mediaId}` }]);
+  }
   const premiumRow = premiumOfferInlineRow(telegramUserId);
   if (premiumRow) keyboard.push(premiumRow);
   return keyboard;
@@ -2170,50 +2179,6 @@ export const Route = createFileRoute("/api/public/telegram/image-webhook")({
             });
             await answerCallbackQueryWithToken(token, callback.id, "Favorito removido.");
             return Response.json({ ok: true, favoriteRemoved: true });
-          }
-
-          if (callbackData.startsWith("idel:")) {
-            const legacyDelete = callbackData.match(
-              /^idel:(?:ask|yes|no):([rvf]):([0-9a-f-]{36})$/i,
-            );
-            if (legacyDelete) {
-              const context = legacyDelete[1];
-              const mediaId = legacyDelete[2];
-              if (context === "f") {
-                const page = getImageBotFavoritePage({
-                  telegramUserId,
-                  currentMediaId: mediaId,
-                });
-                if (page.status === "ok") {
-                  await editMessageReplyMarkupWithToken(
-                    token,
-                    chatId,
-                    messageId,
-                    favoriteNavigation(
-                      page.media.id,
-                      page.index,
-                      page.total,
-                      false,
-                      telegramUserId,
-                    ),
-                  ).catch(() => undefined);
-                }
-              } else {
-                await editMessageReplyMarkupWithToken(
-                  token,
-                  chatId,
-                  messageId,
-                  mediaActions(mediaId, context === "v", false, telegramUserId),
-                ).catch(() => undefined);
-              }
-            }
-            await answerCallbackQueryWithToken(
-              token,
-              callback.id,
-              "Exclusoes agora sao feitas somente no painel web.",
-              true,
-            );
-            return Response.json({ ok: true, mediaAdministrationMovedToPanel: true });
           }
 
           const deleteAction = callbackData.match(/^idel:(ask|yes|no):([rvf]):([0-9a-f-]{36})$/i);
