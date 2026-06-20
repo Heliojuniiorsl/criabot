@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 import { clonePrimarySalesDatabase } from "@/lib/database.server";
@@ -46,8 +46,38 @@ export function closeSalesBotRegistry() {
   if (registry.open) registry.close();
 }
 
+function defaultCloneDatabasePath(id: string) {
+  return resolve(dirname(primaryDatabasePath), "sales-bots", `${id}.sqlite`);
+}
+
+function isWindowsAbsolutePath(value: string) {
+  return /^[A-Za-z]:[\\/]/.test(value);
+}
+
+function resolveCloneDatabasePath(id: string, storedPath: string) {
+  const fallbackPath = defaultCloneDatabasePath(id);
+  const trimmedPath = storedPath.trim();
+  if (!trimmedPath || isWindowsAbsolutePath(trimmedPath)) return fallbackPath;
+
+  const resolvedPath = resolve(trimmedPath);
+  if (existsSync(resolvedPath)) return resolvedPath;
+  if (existsSync(fallbackPath)) return fallbackPath;
+
+  return trimmedPath.endsWith(`${id}.sqlite`) ? fallbackPath : resolvedPath;
+}
+
 function mapClone(row: Omit<SalesBotClone, "key">): SalesBotClone {
-  return { ...row, key: `sales-clone:${row.id}` };
+  const databasePath = resolveCloneDatabasePath(row.id, row.database_path);
+  if (databasePath !== row.database_path) {
+    try {
+      registry
+        .prepare("UPDATE sales_bot_clones SET database_path = ?, updated_at = ? WHERE id = ?")
+        .run(databasePath, new Date().toISOString(), row.id);
+    } catch (error) {
+      console.warn(`[sales-bot-registry:${row.id}] falha ao atualizar caminho do banco`, error);
+    }
+  }
+  return { ...row, database_path: databasePath, key: `sales-clone:${row.id}` };
 }
 
 export function listSalesBotClones() {
@@ -139,7 +169,7 @@ export async function createSalesBotClone(tokenInput: string) {
   if (duplicate) throw new Error(`O bot @${duplicate.username} ja foi adicionado`);
 
   const id = randomUUID();
-  const databasePath = resolve(dirname(primaryDatabasePath), "sales-bots", `${id}.sqlite`);
+  const databasePath = defaultCloneDatabasePath(id);
   await clonePrimarySalesDatabase(databasePath);
 
   const now = new Date().toISOString();

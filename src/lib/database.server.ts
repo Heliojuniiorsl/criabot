@@ -1160,7 +1160,12 @@ if (
           return Promise.all([
             runSalesAutomations(),
             ...listSalesBotClones().map((clone) =>
-              runWithSalesBotRuntime(salesBotCloneRuntime(clone), runSalesAutomations),
+              Promise.resolve(
+                runWithSalesBotRuntime(salesBotCloneRuntime(clone), runSalesAutomations),
+              ).catch((error: unknown) => {
+                  console.error(`[subscription-automation:${clone.username}]`, error);
+                  return null;
+                }),
             ),
             runDueImageBotGroupAutomations(),
             runImageBotPremiumExpiryReminders(),
