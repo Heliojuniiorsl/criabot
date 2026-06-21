@@ -26,6 +26,7 @@ import {
   getImageBotTelegramErrors,
   getImageBotUserDetails,
   getImageBotUserCategory,
+  getImageBotUserLanguage,
   getImageBotUsers,
   getRandomActiveImageBotMedia,
   getImageBotSettings,
@@ -44,6 +45,7 @@ import {
   saveImageBotMedia,
   setImageBotUserBlocked,
   setImageBotUserCategory,
+  setImageBotUserLanguage,
   setImageBotPremiumMessageId,
   updateImageBotSettings,
   upsertImageBotAdminPermission,
@@ -53,6 +55,12 @@ import {
   type ImageBotAdminPermissionRow,
   type ImageBotSettingsRow,
 } from "@/lib/image-bot-database.server";
+import {
+  getImageBotTranslation,
+  imageBotLanguageChoices,
+  imageBotLanguageFromSelection,
+  type ImageBotLanguage,
+} from "@/lib/image-bot-i18n";
 import {
   createImageBotPremiumPixOrder,
   sendImageBotLimitBoostPixQrCode,
@@ -92,6 +100,17 @@ const mediaMenu: ReplyKeyboard = {
   one_time_keyboard: false,
   is_persistent: true,
   input_field_placeholder: "Escolha uma opção",
+};
+
+const languageMenu: ReplyKeyboard = {
+  keyboard: [
+    [{ text: imageBotLanguageChoices.pt }, { text: imageBotLanguageChoices.en }],
+    [{ text: imageBotLanguageChoices.es }],
+  ],
+  resize_keyboard: true,
+  one_time_keyboard: false,
+  is_persistent: true,
+  input_field_placeholder: "Choose your language",
 };
 
 const legacyCategoryLabels = {
@@ -482,10 +501,26 @@ async function editAdminPanelMessage(input: {
   }
 }
 
-function imageCategoryMenu(settings: ImageBotSettingsRow, _isAdmin = false): ReplyKeyboard {
+function imageCategoryMenu(
+  settings: ImageBotSettingsRow,
+  _isAdmin = false,
+  language: ImageBotLanguage = "pt",
+): ReplyKeyboard {
+  const translated = getImageBotTranslation(language);
   return {
     ...categoryMenu,
-    keyboard: [[{ text: settings.category_hetero_label }, { text: settings.category_trans_label }]],
+    keyboard: [
+      [
+        {
+          text: language === "pt" ? settings.category_hetero_label : translated.categoryHetero,
+        },
+        {
+          text: language === "pt" ? settings.category_trans_label : translated.categoryTrans,
+        },
+      ],
+      [{ text: translated.languageButton }],
+    ],
+    input_field_placeholder: translated.categoryPrompt,
   };
 }
 
@@ -493,30 +528,105 @@ function imageMediaMenu(
   settings: ImageBotSettingsRow,
   _isAdmin = false,
   telegramUserId?: number,
+  language: ImageBotLanguage = telegramUserId ? getImageBotUserLanguage(telegramUserId) : "pt",
 ): ReplyKeyboard {
+  const translated = getImageBotTranslation(language);
   const showPremiumOffer = !telegramUserId || !hasLifetimeImageBotPremiumAccess(telegramUserId);
   return {
     ...mediaMenu,
     keyboard: [
-      [{ text: settings.random_button_label }, { text: settings.favorites_button_label }],
-      ...(showPremiumOffer ? [[{ text: settings.premium_offer_button_label }]] : []),
-      [{ text: settings.back_button_label }],
+      [
+        {
+          text: language === "pt" ? settings.random_button_label : translated.mediaButton,
+        },
+        {
+          text: language === "pt" ? settings.favorites_button_label : translated.favoritesButton,
+        },
+      ],
+      ...(showPremiumOffer
+        ? [
+            [
+              {
+                text:
+                  language === "pt"
+                    ? settings.premium_offer_button_label
+                    : translated.premiumButton,
+              },
+            ],
+          ]
+        : []),
+      [{ text: translated.languageButton }],
+      [{ text: language === "pt" ? settings.back_button_label : translated.backButton }],
     ],
+    input_field_placeholder: translated.mediaButton,
   };
 }
 
-function imageCategoryLabel(settings: ImageBotSettingsRow, category: "hetero" | "trans") {
+function imageCategoryLabel(
+  settings: ImageBotSettingsRow,
+  category: "hetero" | "trans",
+  language: ImageBotLanguage = "pt",
+) {
+  const translated = getImageBotTranslation(language);
+  if (language !== "pt") {
+    return category === "hetero" ? translated.categoryHetero : translated.categoryTrans;
+  }
   return category === "hetero" ? settings.category_hetero_label : settings.category_trans_label;
 }
 
 function selectedCategoryFromText(text: string, settings: ImageBotSettingsRow) {
-  if (matchesButton(text, settings.category_hetero_label, legacyCategoryLabels.hetero)) {
+  const translatedLabels = (["pt", "en", "es"] as ImageBotLanguage[]).map((language) =>
+    getImageBotTranslation(language),
+  );
+  if (
+    matchesButton(text, settings.category_hetero_label, [
+      ...legacyCategoryLabels.hetero,
+      ...translatedLabels.map((translation) => translation.categoryHetero),
+    ])
+  ) {
     return "hetero" as const;
   }
-  if (matchesButton(text, settings.category_trans_label, legacyCategoryLabels.trans)) {
+  if (
+    matchesButton(text, settings.category_trans_label, [
+      ...legacyCategoryLabels.trans,
+      ...translatedLabels.map((translation) => translation.categoryTrans),
+    ])
+  ) {
     return "trans" as const;
   }
   return null;
+}
+
+function localizedSettingText(
+  settings: ImageBotSettingsRow,
+  language: ImageBotLanguage,
+  key:
+    | "categoryPrompt"
+    | "categoryRequired"
+    | "emptyMedia"
+    | "favoritesEmpty"
+    | "welcome"
+    | "blocked"
+    | "mediaError"
+    | "favoriteError"
+    | "premiumLifetime"
+    | "adminMoved",
+) {
+  const translated = getImageBotTranslation(language);
+  if (language !== "pt") return translated[key];
+  const configured: Partial<Record<typeof key, string>> = {
+    categoryPrompt: settings.category_prompt,
+    categoryRequired: settings.category_required_message,
+    emptyMedia: settings.empty_media_message,
+    favoritesEmpty: settings.favorites_empty_message,
+    welcome: settings.welcome_message,
+    blocked: translated.blocked,
+    mediaError: translated.mediaError,
+    favoriteError: translated.favoriteError,
+    premiumLifetime: translated.premiumLifetime,
+    adminMoved: translated.adminMoved,
+  };
+  return configured[key] ?? translated[key];
 }
 
 function renderImageBotText(
@@ -1144,7 +1254,11 @@ async function sendAdminLatestMedia(input: {
 
 function premiumOfferInlineRow(telegramUserId?: number): InlineKeyboard[number] | null {
   if (telegramUserId && hasLifetimeImageBotPremiumAccess(telegramUserId)) return null;
-  const label = getImageBotSettings().premium_offer_button_label.trim();
+  const language = telegramUserId ? getImageBotUserLanguage(telegramUserId) : "pt";
+  const label =
+    language === "pt"
+      ? getImageBotSettings().premium_offer_button_label.trim()
+      : getImageBotTranslation(language).premiumButton;
   return label ? [{ text: label.slice(0, 64), callback_data: "ifull:noop" }] : null;
 }
 
@@ -1154,15 +1268,17 @@ const mediaActions = (
   isAdmin = false,
   telegramUserId?: number,
 ): InlineKeyboard => {
+  const language = telegramUserId ? getImageBotUserLanguage(telegramUserId) : "pt";
+  const translated = getImageBotTranslation(language);
   const actions: InlineKeyboard[number] = [
     {
-      text: favorited ? "💔 Remover favorito" : "⭐ Favoritar",
+      text: favorited ? translated.unfavorite : translated.favorite,
       callback_data: favorited ? `iunfav:${mediaId}` : `ifav:${mediaId}`,
     },
   ];
   if (isAdmin) {
     actions.push({
-      text: "Excluir",
+      text: translated.deleteMedia,
       callback_data: `idel:ask:${favorited ? "v" : "r"}:${mediaId}`,
     });
   }
@@ -1336,16 +1452,18 @@ const favoriteNavigation = (
   isAdmin = false,
   telegramUserId?: number,
 ): InlineKeyboard => {
+  const language = telegramUserId ? getImageBotUserLanguage(telegramUserId) : "pt";
+  const translated = getImageBotTranslation(language);
   const keyboard: InlineKeyboard = [
     [
       { text: "《", callback_data: `fnav:p:${mediaId}` },
       { text: `${index} / ${total}`, callback_data: "fnav:count" },
       { text: "》", callback_data: `fnav:n:${mediaId}` },
     ],
-    [{ text: "💔 Remover favorito", callback_data: `frem:ask:${mediaId}` }],
+    [{ text: translated.removeFavorite, callback_data: `frem:ask:${mediaId}` }],
   ];
   if (isAdmin) {
-    keyboard.push([{ text: "Excluir", callback_data: `idel:ask:f:${mediaId}` }]);
+    keyboard.push([{ text: translated.deleteMedia, callback_data: `idel:ask:f:${mediaId}` }]);
   }
   const premiumRow = premiumOfferInlineRow(telegramUserId);
   if (premiumRow) keyboard.push(premiumRow);
@@ -2514,6 +2632,8 @@ export const Route = createFileRoute("/api/public/telegram/image-webhook")({
           telegramProfile: message.from ?? null,
           started: text.startsWith("/start"),
         });
+        let userLanguage = getImageBotUserLanguage(telegramUserId);
+        let translated = getImageBotTranslation(userLanguage);
         const messageUserIsAdmin = isImageBotUserAdmin(telegramUserId);
         if (isImageBotUserBlocked(telegramUserId) && !messageUserIsAdmin) {
           if (
@@ -2523,7 +2643,11 @@ export const Route = createFileRoute("/api/public/telegram/image-webhook")({
               cooldownMs: 30_000,
             })
           ) {
-            await sendMessageWithToken(token, chatId, "Seu acesso ao bot está bloqueado.");
+            await sendMessageWithToken(
+              token,
+              chatId,
+              localizedSettingText(settings, userLanguage, "blocked"),
+            );
           }
           return Response.json({ ok: true, userBlocked: true });
         }
@@ -2540,6 +2664,32 @@ export const Route = createFileRoute("/api/public/telegram/image-webhook")({
           }
           return Response.json({ ok: true, botUnavailable: messageAvailability.status });
         }
+        const selectedLanguage = imageBotLanguageFromSelection(text);
+        if (selectedLanguage) {
+          setImageBotUserLanguage(telegramUserId, selectedLanguage);
+          userLanguage = selectedLanguage;
+          translated = getImageBotTranslation(userLanguage);
+          setImageBotUserCategory(telegramUserId, null);
+          await sendMessageWithTokenReplyKeyboard(
+            token,
+            chatId,
+            translated.languageChanged,
+            imageCategoryMenu(settings, messageUserIsAdmin, userLanguage),
+          );
+          return Response.json({ ok: true, language: userLanguage });
+        }
+        const languageButtons = (["pt", "en", "es"] as ImageBotLanguage[]).map(
+          (language) => getImageBotTranslation(language).languageButton,
+        );
+        if (languageButtons.some((label) => matchesButton(text, label))) {
+          await sendMessageWithTokenReplyKeyboard(
+            token,
+            chatId,
+            translated.languagePrompt,
+            languageMenu,
+          );
+          return Response.json({ ok: true, languageMenu: true });
+        }
         const legacyAdminRequest =
           /^\/(?:admin|usuario|bloquear|desbloquear|msg|adminadd|adminrem|teste)(?:@\w+)?(?:\s|$)/i.test(
             text,
@@ -2548,8 +2698,8 @@ export const Route = createFileRoute("/api/public/telegram/image-webhook")({
           await sendMessageWithTokenReplyKeyboard(
             token,
             chatId,
-            "A administracao do UpMidias agora esta disponivel somente no painel web.",
-            imageCategoryMenu(settings),
+            localizedSettingText(settings, userLanguage, "adminMoved"),
+            imageCategoryMenu(settings, false, userLanguage),
           );
           return Response.json({ ok: true, adminMovedToWebPanel: true });
         }
@@ -2569,34 +2719,50 @@ export const Route = createFileRoute("/api/public/telegram/image-webhook")({
           await sendMessageWithTokenReplyKeyboard(
             token,
             chatId,
-            renderImageBotText(settings.media_prompt, {
-              categoria: imageCategoryLabel(settings, category),
-            }),
-            imageMediaMenu(settings, messageUserIsAdmin, telegramUserId),
+            userLanguage === "pt"
+              ? renderImageBotText(settings.media_prompt, {
+                  categoria: imageCategoryLabel(settings, category, userLanguage),
+                })
+              : translated.mediaPrompt(imageCategoryLabel(settings, category, userLanguage)),
+            imageMediaMenu(settings, messageUserIsAdmin, telegramUserId, userLanguage),
           );
           return Response.json({ ok: true, category });
         }
 
-        if (matchesButton(text, settings.back_button_label, legacyMediaLabels.back)) {
+        const translatedBackLabels = (["pt", "en", "es"] as ImageBotLanguage[]).map(
+          (language) => getImageBotTranslation(language).backButton,
+        );
+        if (
+          matchesButton(text, settings.back_button_label, [
+            ...legacyMediaLabels.back,
+            ...translatedBackLabels,
+          ])
+        ) {
           setImageBotUserCategory(telegramUserId, null);
           await sendMessageWithTokenReplyKeyboard(
             token,
             chatId,
-            settings.category_prompt,
-            imageCategoryMenu(settings, messageUserIsAdmin),
+            localizedSettingText(settings, userLanguage, "categoryPrompt"),
+            imageCategoryMenu(settings, messageUserIsAdmin, userLanguage),
           );
           return Response.json({ ok: true, returnedToCategories: true });
         }
 
+        const translatedPremiumLabels = (["pt", "en", "es"] as ImageBotLanguage[]).map(
+          (language) => getImageBotTranslation(language).premiumButton,
+        );
         if (
-          matchesButton(text, settings.premium_offer_button_label, ["Libere acesso total ao bot"])
+          matchesButton(text, settings.premium_offer_button_label, [
+            "Libere acesso total ao bot",
+            ...translatedPremiumLabels,
+          ])
         ) {
           if (hasLifetimeImageBotPremiumAccess(telegramUserId)) {
             await sendMessageWithTokenReplyKeyboard(
               token,
               chatId,
-              "Voce ja possui acesso vitalicio.",
-              imageMediaMenu(settings, messageUserIsAdmin, telegramUserId),
+              localizedSettingText(settings, userLanguage, "premiumLifetime"),
+              imageMediaMenu(settings, messageUserIsAdmin, telegramUserId, userLanguage),
             );
             return Response.json({ ok: true, lifetimePremium: true });
           }
@@ -2619,12 +2785,16 @@ export const Route = createFileRoute("/api/public/telegram/image-webhook")({
           return Response.json({ ok: true, premiumMenuOpened: true });
         }
 
+        const translatedMediaLabels = (["pt", "en", "es"] as ImageBotLanguage[]).map(
+          (language) => getImageBotTranslation(language).mediaButton,
+        );
         const deliveryType = matchesButton(text, settings.random_button_label, [
           settings.photo_button_label,
           settings.video_button_label,
           ...legacyMediaLabels.random,
           ...legacyMediaLabels.photo,
           ...legacyMediaLabels.video,
+          ...translatedMediaLabels,
         ])
           ? "random"
           : null;
@@ -2634,8 +2804,8 @@ export const Route = createFileRoute("/api/public/telegram/image-webhook")({
             await sendMessageWithTokenReplyKeyboard(
               token,
               chatId,
-              settings.category_required_message,
-              imageCategoryMenu(settings, messageUserIsAdmin),
+              localizedSettingText(settings, userLanguage, "categoryRequired"),
+              imageCategoryMenu(settings, messageUserIsAdmin, userLanguage),
             );
             return Response.json({ ok: true, categoryRequired: true });
           }
@@ -2656,10 +2826,12 @@ export const Route = createFileRoute("/api/public/telegram/image-webhook")({
               await sendMessageWithTokenReplyKeyboard(
                 token,
                 chatId,
-                renderImageBotText(settings.rate_limit_message, {
-                  retry_after: delivery.retryAfterSeconds,
-                }),
-                imageMediaMenu(settings, messageUserIsAdmin, telegramUserId),
+                userLanguage === "pt"
+                  ? renderImageBotText(settings.rate_limit_message, {
+                      retry_after: delivery.retryAfterSeconds,
+                    })
+                  : translated.rateLimit(delivery.retryAfterSeconds),
+                imageMediaMenu(settings, messageUserIsAdmin, telegramUserId, userLanguage),
               );
             }
             return Response.json({ ok: true, rateLimited: true });
@@ -2678,9 +2850,12 @@ export const Route = createFileRoute("/api/public/telegram/image-webhook")({
                 telegramUserId,
                 context: "limit",
                 forceNew: true,
-                intro: renderImageBotText(settings.daily_limit_message, {
-                  retry_after: delivery.retryAfterSeconds,
-                }),
+                intro:
+                  userLanguage === "pt"
+                    ? renderImageBotText(settings.daily_limit_message, {
+                        retry_after: delivery.retryAfterSeconds,
+                      })
+                    : translated.dailyLimit,
               });
             }
             return Response.json({ ok: true, dailyLimited: true });
@@ -2692,8 +2867,8 @@ export const Route = createFileRoute("/api/public/telegram/image-webhook")({
             await sendMessageWithTokenReplyKeyboard(
               token,
               chatId,
-              settings.empty_media_message,
-              imageMediaMenu(settings, messageUserIsAdmin, telegramUserId),
+              localizedSettingText(settings, userLanguage, "emptyMedia"),
+              imageMediaMenu(settings, messageUserIsAdmin, telegramUserId, userLanguage),
             );
             return Response.json({ ok: true, empty: true });
           }
@@ -2726,8 +2901,8 @@ export const Route = createFileRoute("/api/public/telegram/image-webhook")({
             await sendMessageWithTokenReplyKeyboard(
               token,
               chatId,
-              "Não consegui enviar esta mídia agora. Tente outra.",
-              imageMediaMenu(settings, messageUserIsAdmin, telegramUserId),
+              localizedSettingText(settings, userLanguage, "mediaError"),
+              imageMediaMenu(settings, messageUserIsAdmin, telegramUserId, userLanguage),
             );
             return Response.json({ ok: true, telegramDeliveryError: true });
           }
@@ -2742,14 +2917,22 @@ export const Route = createFileRoute("/api/public/telegram/image-webhook")({
           return Response.json({ ok: true, mediaDelivered: true });
         }
 
-        if (matchesButton(text, settings.favorites_button_label, legacyMediaLabels.favorites)) {
+        const translatedFavoriteLabels = (["pt", "en", "es"] as ImageBotLanguage[]).map(
+          (language) => getImageBotTranslation(language).favoritesButton,
+        );
+        if (
+          matchesButton(text, settings.favorites_button_label, [
+            ...legacyMediaLabels.favorites,
+            ...translatedFavoriteLabels,
+          ])
+        ) {
           const category = getImageBotUserCategory(telegramUserId);
           if (!category) {
             await sendMessageWithTokenReplyKeyboard(
               token,
               chatId,
-              settings.category_required_message,
-              imageCategoryMenu(settings, messageUserIsAdmin),
+              localizedSettingText(settings, userLanguage, "categoryRequired"),
+              imageCategoryMenu(settings, messageUserIsAdmin, userLanguage),
             );
             return Response.json({ ok: true, categoryRequired: true });
           }
@@ -2786,8 +2969,8 @@ export const Route = createFileRoute("/api/public/telegram/image-webhook")({
             await sendMessageWithTokenReplyKeyboard(
               token,
               chatId,
-              settings.favorites_empty_message,
-              imageMediaMenu(settings, messageUserIsAdmin, telegramUserId),
+              localizedSettingText(settings, userLanguage, "favoritesEmpty"),
+              imageMediaMenu(settings, messageUserIsAdmin, telegramUserId, userLanguage),
             );
             return Response.json({ ok: true, favoriteEmpty: true });
           }
@@ -2832,8 +3015,8 @@ export const Route = createFileRoute("/api/public/telegram/image-webhook")({
             await sendMessageWithTokenReplyKeyboard(
               token,
               chatId,
-              "Não consegui enviar este favorito agora.",
-              imageMediaMenu(settings, messageUserIsAdmin, telegramUserId),
+              localizedSettingText(settings, userLanguage, "favoriteError"),
+              imageMediaMenu(settings, messageUserIsAdmin, telegramUserId, userLanguage),
             );
             return Response.json({ ok: true, telegramFavoriteError: true });
           }
@@ -2857,8 +3040,8 @@ export const Route = createFileRoute("/api/public/telegram/image-webhook")({
           await sendMessageWithTokenReplyKeyboard(
             token,
             chatId,
-            settings.category_prompt,
-            imageCategoryMenu(settings, messageUserIsAdmin),
+            localizedSettingText(settings, userLanguage, "categoryPrompt"),
+            imageCategoryMenu(settings, messageUserIsAdmin, userLanguage),
           );
           return Response.json({ ok: true });
         }
@@ -2881,8 +3064,8 @@ export const Route = createFileRoute("/api/public/telegram/image-webhook")({
               token,
               chatId,
               settings.welcome_image_url,
-              settings.welcome_message,
-              imageCategoryMenu(settings, messageUserIsAdmin),
+              localizedSettingText(settings, userLanguage, "welcome"),
+              imageCategoryMenu(settings, messageUserIsAdmin, userLanguage),
             );
           } catch (photoError) {
             console.error("[image-bot-welcome-photo]", photoError);
@@ -2895,16 +3078,16 @@ export const Route = createFileRoute("/api/public/telegram/image-webhook")({
             await sendMessageWithTokenReplyKeyboard(
               token,
               chatId,
-              settings.welcome_message,
-              imageCategoryMenu(settings, messageUserIsAdmin),
+              localizedSettingText(settings, userLanguage, "welcome"),
+              imageCategoryMenu(settings, messageUserIsAdmin, userLanguage),
             );
           }
         } else {
           await sendMessageWithTokenReplyKeyboard(
             token,
             chatId,
-            settings.welcome_message,
-            imageCategoryMenu(settings, messageUserIsAdmin),
+            localizedSettingText(settings, userLanguage, "welcome"),
+            imageCategoryMenu(settings, messageUserIsAdmin, userLanguage),
           );
         }
         return Response.json({ ok: true });

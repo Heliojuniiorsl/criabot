@@ -388,6 +388,30 @@ describe("banco independente do UpMidias", () => {
     expect(database.getImageBotUserCategory(321)).toBeNull();
   });
 
+  it("detecta e preserva o idioma escolhido pelo usuario", () => {
+    database.upsertImageBotUser({
+      telegramUserId: 330,
+      firstName: "Visitor",
+      languageCode: "en-US",
+      started: true,
+    });
+    expect(database.getImageBotUserLanguage(330)).toBe("en");
+
+    expect(database.setImageBotUserLanguage(330, "es")).toBe(true);
+    database.upsertImageBotUser({
+      telegramUserId: 330,
+      languageCode: "en-US",
+    });
+
+    expect(database.getImageBotUserLanguage(330)).toBe("es");
+    expect(database.getImageBotUsers().find((user) => user.telegram_user_id === 330)).toMatchObject(
+      {
+        language_code: "en-US",
+        preferred_language: "es",
+      },
+    );
+  });
+
   it("lista somente usuarios que ja deram start", () => {
     database.upsertImageBotUser({
       telegramUserId: 10001,

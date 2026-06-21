@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
+import { detectImageBotLanguage, type ImageBotLanguage } from "@/lib/image-bot-i18n";
+
 export type ImageBotCategory = "hetero" | "trans";
 export type ImageBotMediaType = "photo" | "video";
 export type ImageBotGroupAutomationContentKind =
@@ -164,6 +166,7 @@ imageBotSqlite.exec(`
     first_name TEXT,
     last_name TEXT,
     language_code TEXT,
+    preferred_language TEXT,
     first_started_at TEXT,
     last_started_at TEXT,
     last_activity_at TEXT NOT NULL,
@@ -604,6 +607,7 @@ addMissingColumn("premium_expiry_notifications", "send_count", "INTEGER NOT NULL
 addMissingColumn("settings", "auto_message_plan_mode", "TEXT NOT NULL DEFAULT 'none'");
 addMissingColumn("settings", "auto_message_plan_id", "TEXT");
 addMissingColumn("group_automations", "buttons", "TEXT NOT NULL DEFAULT '[]'");
+addMissingColumn("users", "preferred_language", "TEXT");
 imageBotSqlite.exec(
   "CREATE UNIQUE INDEX IF NOT EXISTS daily_limit_boosts_order_idx ON daily_limit_boosts(order_id) WHERE order_id IS NOT NULL",
 );
@@ -1953,18 +1957,20 @@ export function upsertImageBotUser(input: {
 }) {
   const now = input.activityAt ?? new Date().toISOString();
   const profileJson = input.telegramProfile ? JSON.stringify(input.telegramProfile) : null;
+  const detectedLanguage = detectImageBotLanguage(input.languageCode);
   imageBotSqlite
     .prepare(
       `INSERT INTO users
-       (id, telegram_user_id, username, first_name, last_name, language_code,
+       (id, telegram_user_id, username, first_name, last_name, language_code, preferred_language,
         first_started_at, last_started_at, last_activity_at, is_bot, is_telegram_premium,
         start_count, telegram_profile_json, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(telegram_user_id) DO UPDATE SET
          username = COALESCE(excluded.username, users.username),
          first_name = COALESCE(excluded.first_name, users.first_name),
          last_name = COALESCE(excluded.last_name, users.last_name),
          language_code = COALESCE(excluded.language_code, users.language_code),
+         preferred_language = COALESCE(users.preferred_language, excluded.preferred_language),
          is_bot = excluded.is_bot,
          is_telegram_premium = excluded.is_telegram_premium,
          telegram_profile_json = COALESCE(excluded.telegram_profile_json, users.telegram_profile_json),
@@ -1987,6 +1993,7 @@ export function upsertImageBotUser(input: {
       input.firstName ?? null,
       input.lastName ?? null,
       input.languageCode ?? null,
+      detectedLanguage,
       input.started ? now : null,
       input.started ? now : null,
       now,
@@ -1997,6 +2004,23 @@ export function upsertImageBotUser(input: {
       now,
       now,
     );
+}
+
+export function getImageBotUserLanguage(telegramUserId: number): ImageBotLanguage {
+  const row = imageBotSqlite
+    .prepare("SELECT preferred_language, language_code FROM users WHERE telegram_user_id = ?")
+    .get(telegramUserId) as
+    | { preferred_language: string | null; language_code: string | null }
+    | undefined;
+  return detectImageBotLanguage(row?.preferred_language ?? row?.language_code);
+}
+
+export function setImageBotUserLanguage(telegramUserId: number, language: ImageBotLanguage) {
+  return (
+    imageBotSqlite
+      .prepare("UPDATE users SET preferred_language = ?, updated_at = ? WHERE telegram_user_id = ?")
+      .run(language, new Date().toISOString(), telegramUserId).changes > 0
+  );
 }
 
 export function setImageBotUserAdmin(telegramUserId: number, isAdmin: boolean) {
@@ -2045,6 +2069,7 @@ export type ImageBotUserRow = {
   first_name: string | null;
   last_name: string | null;
   language_code: string | null;
+  preferred_language: ImageBotLanguage | null;
   first_started_at: string;
   last_started_at: string;
   last_activity_at: string;
@@ -2075,7 +2100,8 @@ export function getImageBotUsers(telegramUserId?: number): ImageBotUserRow[] {
   const rows = imageBotSqlite
     .prepare(
       `SELECT users.id, users.telegram_user_id, users.username, users.first_name,
-              users.last_name, users.language_code, users.first_started_at,
+              users.last_name, users.language_code, users.preferred_language,
+              users.first_started_at,
               users.last_started_at, users.last_activity_at, users.media_delivered_count,
               users.is_admin, users.is_blocked, users.is_bot, users.is_telegram_premium,
               users.start_count, users.telegram_profile_json, users.delivery_limit_per_minute,

@@ -108,10 +108,18 @@ type ImageBotSettingsData = {
   limit_upgrade_access_days: number;
 };
 
-type ImageBotSettingsSection = "welcome" | "buttons" | "texts" | "automation" | "system" | "test";
+type ImageBotSettingsSection =
+  | "welcome"
+  | "languages"
+  | "buttons"
+  | "texts"
+  | "automation"
+  | "system"
+  | "test";
 
 const imageBotSettingsSections: { value: ImageBotSettingsSection; label: string }[] = [
   { value: "welcome", label: "Boas-vindas" },
+  { value: "languages", label: "Idiomas" },
   { value: "buttons", label: "Botões" },
   { value: "texts", label: "Textos" },
   { value: "automation", label: "Automação" },
@@ -275,6 +283,36 @@ function ImageBotSettings() {
               </p>
               <ImageUpload value={imageUrl} onChange={setImageUrl} />
             </div>
+          </Card>
+        </div>
+
+        <div className={activeSection !== "languages" ? "panel-section-hidden" : undefined}>
+          <Card className="space-y-4 p-6">
+            <div>
+              <h2 className="font-display text-lg font-semibold">Idiomas dos usuários</h2>
+              <p className="text-sm text-muted-foreground">
+                O UpMidias detecta o idioma configurado no Telegram e permite a troca manual pelo
+                teclado do bot.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border bg-muted/30 p-4">
+                <div className="font-medium">🇧🇷 Português</div>
+                <div className="mt-1 text-xs text-muted-foreground">Idioma padrão</div>
+              </div>
+              <div className="rounded-2xl border bg-muted/30 p-4">
+                <div className="font-medium">🇺🇸 English</div>
+                <div className="mt-1 text-xs text-muted-foreground">Tradução automática ativa</div>
+              </div>
+              <div className="rounded-2xl border bg-muted/30 p-4">
+                <div className="font-medium">🇪🇸 Español</div>
+                <div className="mt-1 text-xs text-muted-foreground">Tradução automática ativa</div>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              As mensagens personalizadas em português continuam sendo usadas para usuários em
+              português. Inglês e espanhol usam as traduções internas do sistema.
+            </p>
           </Card>
         </div>
 
