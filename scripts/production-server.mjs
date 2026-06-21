@@ -1,7 +1,9 @@
-import { createReadStream } from "node:fs";
+import Database from "better-sqlite3";
+import { createHash } from "node:crypto";
+import { createReadStream, existsSync } from "node:fs";
 import { stat } from "node:fs/promises";
 import { createServer } from "node:http";
-import { extname, resolve, sep } from "node:path";
+import { dirname, extname, resolve, sep } from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 
@@ -9,6 +11,13 @@ const rootDir = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const clientDir = resolve(rootDir, "dist/client");
 const serverEntry = await import(new URL("../dist/server/server.js", import.meta.url));
 const handler = serverEntry.default;
+const salesWebhookUpdates = [
+  "message",
+  "channel_post",
+  "callback_query",
+  "my_chat_member",
+  "chat_join_request",
+];
 
 if (!handler || typeof handler.fetch !== "function") {
   throw new Error("O bundle TanStack não exporta um handler fetch válido");
@@ -104,8 +113,67 @@ const server = createServer(async (request, response) => {
   }
 });
 
+async function setSalesWebhook(label, token, publicUrl) {
+  if (!token || !publicUrl.startsWith("https://")) return;
+  const secret = createHash("sha256").update(`telegram-webhook:${token}`).digest("base64url");
+  const response = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      url: `${publicUrl}/api/public/telegram/webhook`,
+      secret_token: secret,
+      allowed_updates: salesWebhookUpdates,
+      drop_pending_updates: false,
+    }),
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || !payload?.ok) {
+    const detail = payload?.description ?? `HTTP ${response.status}`;
+    throw new Error(`Telegram recusou o webhook de ${label}: ${detail}`);
+  }
+  console.log(`[boot] Webhook de ${label} sincronizado.`);
+}
+
+function listSalesClonesForWebhookSync() {
+  const primaryDatabasePath = resolve(process.env.DATABASE_PATH ?? "data/botvendassl.sqlite");
+  const registryPath = resolve(
+    process.env.BOT_REGISTRY_PATH ?? dirname(primaryDatabasePath),
+    process.env.BOT_REGISTRY_PATH ? "" : "bot-registry.sqlite",
+  );
+  if (!existsSync(registryPath)) return [];
+
+  const registry = new Database(registryPath, { readonly: true });
+  try {
+    const table = registry
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'sales_bot_clones'")
+      .get();
+    if (!table) return [];
+    return registry
+      .prepare("SELECT username, token FROM sales_bot_clones WHERE token IS NOT NULL AND token != ''")
+      .all();
+  } finally {
+    registry.close();
+  }
+}
+
+async function syncSalesWebhooksOnBoot() {
+  const publicUrl = String(process.env.PUBLIC_BASE_URL ?? "").replace(/\/$/, "");
+  if (!publicUrl.startsWith("https://")) return;
+
+  const tasks = [setSalesWebhook("Bruna", process.env.TELEGRAM_BOT_TOKEN, publicUrl)];
+  for (const clone of listSalesClonesForWebhookSync()) {
+    tasks.push(setSalesWebhook(`clone @${clone.username}`, clone.token, publicUrl));
+  }
+
+  const results = await Promise.allSettled(tasks);
+  for (const result of results) {
+    if (result.status === "rejected") console.warn(`[boot] ${result.reason.message}`);
+  }
+}
+
 const port = Number(process.env.PORT ?? 80);
 const host = process.env.HOST ?? "0.0.0.0";
 server.listen(port, host, () => {
   console.log(`Production server listening on http://${host}:${port}`);
+  void syncSalesWebhooksOnBoot();
 });
