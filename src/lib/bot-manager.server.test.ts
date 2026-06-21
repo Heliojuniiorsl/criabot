@@ -103,6 +103,7 @@ describe("gerenciador de bots", () => {
     expect(body.url).toBe("https://bot.example.com/api/public/telegram/webhook");
     expect(body.allowed_updates).toEqual([
       "message",
+      "channel_post",
       "callback_query",
       "my_chat_member",
       "chat_join_request",

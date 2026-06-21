@@ -291,20 +291,20 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
           return data;
         }
 
-        function isGroupChat(chat: any): chat is {
+        function isManagedTelegramChat(chat: any): chat is {
           id: number;
           title?: string;
           username?: string;
-          type: "group" | "supergroup";
+          type: "group" | "supergroup" | "channel";
         } {
-          return chat?.type === "group" || chat?.type === "supergroup";
+          return chat?.type === "group" || chat?.type === "supergroup" || chat?.type === "channel";
         }
 
         async function syncGroup(
           chat: any,
           options: { botStatus?: string; isActive?: boolean; loadMemberCount?: boolean } = {},
         ) {
-          if (!isGroupChat(chat)) return;
+          if (!isManagedTelegramChat(chat)) return;
           let memberCount: number | null | undefined;
           if (options.loadMemberCount && options.isActive) {
             try {
@@ -441,7 +441,7 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
           if (update.message) {
             const message = update.message;
             const chatId = message.chat.id;
-            if (isGroupChat(message.chat)) {
+            if (isManagedTelegramChat(message.chat) && message.chat.type !== "channel") {
               await syncGroup(message.chat, { isActive: true });
               return Response.json({ ok: true, groupActivity: true });
             }
@@ -531,6 +531,11 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
             return Response.json({ ok: true });
           }
 
+          if (update.channel_post?.chat) {
+            await syncGroup(update.channel_post.chat, { isActive: true });
+            return Response.json({ ok: true, channelActivity: true });
+          }
+
           if (update.callback_query) {
             const callback = update.callback_query;
             const chatId = callback.message.chat.id;
@@ -563,10 +568,10 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
               return Response.json({ ok: true, rateLimited: true });
             }
             const purchaseFromGroup =
-              isGroupChat(callback.message.chat) &&
+              isManagedTelegramChat(callback.message.chat) &&
               (data.startsWith("buy_") || data.startsWith("renew_"));
             const planAutomationFromGroup =
-              isGroupChat(callback.message.chat) &&
+              isManagedTelegramChat(callback.message.chat) &&
               (data === "auto_plans" || data.startsWith("auto_plan_"));
             const checkingPayment = data.startsWith("pix_check:");
             if (!checkingPayment) {

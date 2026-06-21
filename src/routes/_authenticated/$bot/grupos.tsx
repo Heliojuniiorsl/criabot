@@ -83,7 +83,7 @@ type TelegramGroup = {
   telegram_chat_id: number;
   title: string;
   username: string | null;
-  type: "group" | "supergroup";
+  type: "group" | "supergroup" | "channel";
   category?: "hetero" | "trans" | null;
   bot_status: string;
   is_active: boolean;
@@ -232,6 +232,7 @@ function ImageBotGroups() {
     }),
   );
   const activeGroups = groups.filter((group) => group.is_active).length;
+  const activeChannels = groups.filter((group) => group.is_active && group.type === "channel").length;
   const needsMediaPermission = groups.some(
     (group) => group.is_active && !["creator", "administrator"].includes(group.bot_status),
   );
@@ -399,7 +400,7 @@ function ImageBotGroups() {
     <div>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl font-semibold">Grupos</h1>
+          <h1 className="font-display text-3xl font-semibold">Grupos e canais</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Grupos em que o UpMidias está presente. Gerencie automações por grupo sem misturar com o
             bot de vendas.
@@ -432,8 +433,11 @@ function ImageBotGroups() {
             <UsersRound className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-sm text-muted-foreground">Grupos ativos</div>
+            <div className="text-sm text-muted-foreground">Grupos/canais ativos</div>
             <div className="text-2xl font-semibold">{activeGroups}</div>
+            {activeChannels > 0 && (
+              <div className="text-xs text-muted-foreground">{activeChannels} canal(is)</div>
+            )}
           </div>
         </Card>
         <Card className="flex items-center gap-4 p-5">
@@ -466,7 +470,7 @@ function ImageBotGroups() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Grupo</TableHead>
+              <TableHead>Grupo/canal</TableHead>
               <TableHead>Categoria</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Membros</TableHead>
@@ -501,7 +505,13 @@ function ImageBotGroups() {
                         : "Não definida"}
                   </Badge>
                 </TableCell>
-                <TableCell>{group.type === "supergroup" ? "Supergrupo" : "Grupo"}</TableCell>
+                <TableCell>
+                  {group.type === "channel"
+                    ? "Canal"
+                    : group.type === "supergroup"
+                      ? "Supergrupo"
+                      : "Grupo"}
+                </TableCell>
                 <TableCell>{group.member_count ?? "—"}</TableCell>
                 <TableCell>
                   <Badge variant={group.is_active ? "default" : "secondary"}>
@@ -1021,6 +1031,7 @@ function SalesBotGroups() {
   const groups = groupsQuery.data;
   const messages = messagesQuery.data ?? [];
   const activeGroups = groups.filter((group) => group.is_active).length;
+  const activeChannels = groups.filter((group) => group.is_active && group.type === "channel").length;
 
   function openNewMessage() {
     setEditing(null);
@@ -1085,7 +1096,7 @@ function SalesBotGroups() {
     <div>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl font-semibold">Grupos</h1>
+          <h1 className="font-display text-3xl font-semibold">Grupos e canais</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Clique em um grupo para administrar mensagens automáticas exclusivas dele.
           </p>
@@ -1106,8 +1117,11 @@ function SalesBotGroups() {
             <UsersRound className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-sm text-muted-foreground">Grupos ativos</div>
+            <div className="text-sm text-muted-foreground">Grupos/canais ativos</div>
             <div className="text-2xl font-semibold">{activeGroups}</div>
+            {activeChannels > 0 && (
+              <div className="text-xs text-muted-foreground">{activeChannels} canal(is)</div>
+            )}
           </div>
         </Card>
         <Card className="flex items-center gap-4 p-5">
@@ -1125,7 +1139,7 @@ function SalesBotGroups() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Grupo</TableHead>
+              <TableHead>Grupo/canal</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Membros</TableHead>
               <TableHead>Status do bot</TableHead>
@@ -1154,7 +1168,13 @@ function SalesBotGroups() {
                     {group.username ? `@${group.username}` : `ID ${group.telegram_chat_id}`}
                   </div>
                 </TableCell>
-                <TableCell>{group.type === "supergroup" ? "Supergrupo" : "Grupo"}</TableCell>
+                <TableCell>
+                  {group.type === "channel"
+                    ? "Canal"
+                    : group.type === "supergroup"
+                      ? "Supergrupo"
+                      : "Grupo"}
+                </TableCell>
                 <TableCell>{group.member_count ?? "—"}</TableCell>
                 <TableCell>
                   <Badge variant={group.is_active ? "default" : "secondary"}>

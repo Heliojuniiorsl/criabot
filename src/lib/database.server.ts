@@ -34,6 +34,7 @@ function activeSqlite() {
   if (existing) return existing;
   mkdirSync(dirname(clonePath), { recursive: true });
   const database = configureDatabase(new Database(clonePath));
+  ensureTelegramGroupsSupportsChannels(database);
   cloneDatabases.set(clonePath, database);
   return database;
 }
@@ -194,7 +195,7 @@ sqlite.exec(`
     telegram_chat_id INTEGER NOT NULL UNIQUE,
     title TEXT NOT NULL,
     username TEXT,
-    type TEXT NOT NULL CHECK (type IN ('group', 'supergroup')),
+    type TEXT NOT NULL CHECK (type IN ('group', 'supergroup', 'channel')),
     bot_status TEXT NOT NULL DEFAULT 'member',
     is_active INTEGER NOT NULL DEFAULT 1,
     member_count INTEGER,
@@ -298,6 +299,49 @@ function addColumnIfMissing(table: string, column: string, definition: string) {
     );
   }
 }
+
+function ensureTelegramGroupsSupportsChannels(database: Database.Database = sqlite) {
+  const table = database
+    .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'telegram_groups'")
+    .get() as { sql: string } | undefined;
+  if (!table?.sql || table.sql.includes("'channel'")) return;
+
+  database.pragma("foreign_keys = OFF");
+  try {
+    database.exec(`
+      DROP TABLE IF EXISTS telegram_groups_next;
+      CREATE TABLE telegram_groups_next (
+        id TEXT PRIMARY KEY,
+        telegram_chat_id INTEGER NOT NULL UNIQUE,
+        title TEXT NOT NULL,
+        username TEXT,
+        type TEXT NOT NULL CHECK (type IN ('group', 'supergroup', 'channel')),
+        bot_status TEXT NOT NULL DEFAULT 'member',
+        is_active INTEGER NOT NULL DEFAULT 1,
+        member_count INTEGER,
+        joined_at TEXT,
+        left_at TEXT,
+        last_activity_at TEXT,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      INSERT INTO telegram_groups_next
+        (id, telegram_chat_id, title, username, type, bot_status, is_active, member_count,
+         joined_at, left_at, last_activity_at, created_at, updated_at)
+      SELECT id, telegram_chat_id, title, username, type, bot_status, is_active, member_count,
+             joined_at, left_at, last_activity_at, created_at, updated_at
+      FROM telegram_groups;
+      DROP TABLE telegram_groups;
+      ALTER TABLE telegram_groups_next RENAME TO telegram_groups;
+      CREATE INDEX IF NOT EXISTS telegram_groups_active_idx
+        ON telegram_groups(is_active, updated_at DESC);
+    `);
+  } finally {
+    database.pragma("foreign_keys = ON");
+  }
+}
+
+ensureTelegramGroupsSupportsChannels();
 
 addColumnIfMissing("users", "email", "TEXT");
 addColumnIfMissing("users", "is_blocked", "INTEGER NOT NULL DEFAULT 0");
@@ -1038,7 +1082,7 @@ export type TelegramGroupInput = {
   telegramChatId: number;
   title: string;
   username?: string | null;
-  type: "group" | "supergroup";
+  type: "group" | "supergroup" | "channel";
   botStatus?: string;
   isActive?: boolean;
   memberCount?: number | null;
@@ -1050,7 +1094,7 @@ export type TelegramGroupRow = {
   telegram_chat_id: number;
   title: string;
   username: string | null;
-  type: "group" | "supergroup";
+  type: "group" | "supergroup" | "channel";
   bot_status: string;
   is_active: boolean;
   member_count: number | null;

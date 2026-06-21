@@ -199,6 +199,30 @@ describe("SQLite local", () => {
     expect(groups[0].left_at).toBeTruthy();
   });
 
+  it("registra canais do bot de vendas na mesma listagem de grupos", () => {
+    database.upsertTelegramGroup({
+      telegramChatId: -1009876543210,
+      title: "Canal VIP",
+      username: "canal_vip_teste",
+      type: "channel",
+      botStatus: "administrator",
+      isActive: true,
+      memberCount: 120,
+    });
+
+    const channel = database
+      .getTelegramGroups()
+      .find((item) => item.telegram_chat_id === -1009876543210);
+    expect(channel).toMatchObject({
+      title: "Canal VIP",
+      username: "canal_vip_teste",
+      type: "channel",
+      bot_status: "administrator",
+      is_active: true,
+      member_count: 120,
+    });
+  });
+
   it("libera mensagens automaticas de grupos pelo intervalo em minutos", async () => {
     database.upsertTelegramGroup({
       telegramChatId: -1001234567891,

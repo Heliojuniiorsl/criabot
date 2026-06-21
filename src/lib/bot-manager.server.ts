@@ -28,7 +28,13 @@ type ManagedBotConfig = {
   isClone: boolean;
 };
 
-const salesUpdates = ["message", "callback_query", "my_chat_member", "chat_join_request"];
+const salesUpdates = [
+  "message",
+  "channel_post",
+  "callback_query",
+  "my_chat_member",
+  "chat_join_request",
+];
 const imageUpdates = ["message", "callback_query", "my_chat_member"];
 const botActionLocks = new Map<ManagedBotKey, Promise<unknown>>();
 
