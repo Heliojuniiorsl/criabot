@@ -232,7 +232,7 @@ if (!$SkipWebhooks) {
     $envValues["TELEGRAM_BOT_TOKEN"] `
     "telegram-webhook" `
     "$publicUrl/api/public/telegram/webhook" `
-    @("message", "callback_query", "my_chat_member", "chat_join_request")
+    @("message", "channel_post", "callback_query", "my_chat_member", "chat_join_request")
   Set-TelegramWebhook "UpMidias" `
     $envValues["IMAGE_BOT_TOKEN"] `
     "telegram-image-webhook" `

@@ -33,7 +33,13 @@ for (const clone of clones) {
     body: JSON.stringify({
       url: `${publicUrl}/api/public/telegram/webhook`,
       secret_token: secret,
-      allowed_updates: ["message", "callback_query", "my_chat_member", "chat_join_request"],
+      allowed_updates: [
+        "message",
+        "channel_post",
+        "callback_query",
+        "my_chat_member",
+        "chat_join_request",
+      ],
       drop_pending_updates: false,
     }),
   });
