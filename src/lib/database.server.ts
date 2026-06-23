@@ -1154,7 +1154,109 @@ export function upsertTelegramGroup(input: TelegramGroupInput) {
   return getTelegramGroups().find((group) => group.telegram_chat_id === input.telegramChatId);
 }
 
+function normalizedTelegramGroupTitle(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .toLocaleLowerCase("pt-BR")
+    .replace(/\s+/g, " ");
+}
+
+function mergeTelegramGroupRecords(oldGroupId: string, newGroupId: string) {
+  if (oldGroupId === newGroupId) return;
+  sqlite
+    .prepare("UPDATE group_broadcasts SET group_id = ?, updated_at = ? WHERE group_id = ?")
+    .run(newGroupId, new Date().toISOString(), oldGroupId);
+  sqlite.prepare("DELETE FROM telegram_groups WHERE id = ?").run(oldGroupId);
+}
+
+export function migrateTelegramGroupChatId(oldChatId: number, newChatId: number) {
+  const migrate = sqlite.transaction(() => {
+    const oldGroup = sqlite
+      .prepare("SELECT * FROM telegram_groups WHERE telegram_chat_id = ?")
+      .get(oldChatId) as Row | undefined;
+    if (!oldGroup) return false;
+
+    const newGroup = sqlite
+      .prepare("SELECT * FROM telegram_groups WHERE telegram_chat_id = ?")
+      .get(newChatId) as Row | undefined;
+    const now = new Date().toISOString();
+
+    if (newGroup) {
+      mergeTelegramGroupRecords(String(oldGroup.id), String(newGroup.id));
+      sqlite
+        .prepare(
+          `UPDATE telegram_groups
+           SET type = 'supergroup',
+               username = COALESCE(username, ?),
+               member_count = COALESCE(member_count, ?),
+               joined_at = COALESCE(joined_at, ?),
+               updated_at = ?
+           WHERE id = ?`,
+        )
+        .run(
+          oldGroup.username ?? null,
+          oldGroup.member_count ?? null,
+          oldGroup.joined_at ?? null,
+          now,
+          newGroup.id,
+        );
+    } else {
+      sqlite
+        .prepare(
+          `UPDATE telegram_groups
+           SET telegram_chat_id = ?, type = 'supergroup', updated_at = ?
+           WHERE id = ?`,
+        )
+        .run(newChatId, now, oldGroup.id);
+    }
+    return true;
+  });
+
+  return migrate();
+}
+
+export function consolidateMigratedTelegramGroups() {
+  const consolidate = sqlite.transaction(() => {
+    const groups = sqlite
+      .prepare(
+        `SELECT * FROM telegram_groups
+         WHERE type IN ('group', 'supergroup')
+         ORDER BY is_active DESC, COALESCE(last_activity_at, updated_at) DESC`,
+      )
+      .all() as Row[];
+    const supergroups = groups.filter((group) => group.type === "supergroup");
+    let removed = 0;
+
+    for (const legacyGroup of groups.filter((group) => group.type === "group")) {
+      const matchingSupergroup = supergroups.find((supergroup) => {
+        const sameUsername =
+          legacyGroup.username &&
+          supergroup.username &&
+          String(legacyGroup.username).toLowerCase() === String(supergroup.username).toLowerCase();
+        const sameTitle =
+          normalizedTelegramGroupTitle(legacyGroup.title) !== "" &&
+          normalizedTelegramGroupTitle(legacyGroup.title) ===
+            normalizedTelegramGroupTitle(supergroup.title);
+        const sameMemberCount =
+          legacyGroup.member_count != null &&
+          supergroup.member_count != null &&
+          Number(legacyGroup.member_count) === Number(supergroup.member_count);
+        return Boolean(sameUsername || (sameTitle && (sameMemberCount || !legacyGroup.is_active)));
+      });
+      if (!matchingSupergroup) continue;
+
+      mergeTelegramGroupRecords(String(legacyGroup.id), String(matchingSupergroup.id));
+      removed += 1;
+    }
+
+    return removed;
+  });
+
+  return consolidate();
+}
+
 export function getTelegramGroups(): TelegramGroupRow[] {
+  consolidateMigratedTelegramGroups();
   return (
     sqlite
       .prepare(
@@ -1207,9 +1309,9 @@ if (
               Promise.resolve(
                 runWithSalesBotRuntime(salesBotCloneRuntime(clone), runSalesAutomations),
               ).catch((error: unknown) => {
-                  console.error(`[subscription-automation:${clone.username}]`, error);
-                  return null;
-                }),
+                console.error(`[subscription-automation:${clone.username}]`, error);
+                return null;
+              }),
             ),
             runDueImageBotGroupAutomations(),
             runImageBotPremiumExpiryReminders(),

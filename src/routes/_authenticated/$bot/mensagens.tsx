@@ -227,7 +227,7 @@ function Mensagens() {
                     setContentKind(event.target.value as "custom" | "telegram_message")
                   }
                 >
-                  <option value="custom">Criar texto ou foto aqui</option>
+                  <option value="custom">Criar texto, foto ou vídeo aqui</option>
                   <option value="telegram_message">Usar mensagem pronta pelo ID</option>
                 </select>
               </div>
@@ -244,8 +244,15 @@ function Mensagens() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Foto da mensagem</Label>
-                    <ImageUpload value={imageUrl} onChange={setImageUrl} />
+                    <Label>Foto ou vídeo da mensagem</Label>
+                    <ImageUpload
+                      value={imageUrl}
+                      onChange={setImageUrl}
+                      accept="image/*,video/mp4,video/quicktime,video/webm"
+                      allowedKinds={["image", "video"]}
+                      buttonLabel="Enviar foto ou vídeo"
+                      maxSizeMb={60}
+                    />
                   </div>
                 </>
               ) : (

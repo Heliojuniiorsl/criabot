@@ -1174,7 +1174,7 @@ function SalesBotGroups() {
       id: editing?.id,
       group_id: selectedGroup.id,
       title: String(form.get("title")),
-      message: String(form.get("message")),
+      message: String(form.get("message") || ""),
       image_url: imageUrl || null,
       buttons,
       interval_minutes: Number(form.get("interval_minutes")),
@@ -1455,14 +1455,20 @@ function SalesBotGroups() {
                 id="group-message-text"
                 name="message"
                 rows={6}
-                required
                 defaultValue={editing?.message ?? ""}
-                placeholder="Digite a mensagem automática..."
+                placeholder="Digite uma legenda opcional..."
               />
             </div>
             <div className="space-y-2">
-              <Label>Imagem opcional</Label>
-              <ImageUpload value={imageUrl} onChange={setImageUrl} />
+              <Label>Foto ou vídeo opcional</Label>
+              <ImageUpload
+                value={imageUrl}
+                onChange={setImageUrl}
+                accept="image/*,video/mp4,video/quicktime,video/webm"
+                allowedKinds={["image", "video"]}
+                buttonLabel="Enviar foto ou vídeo"
+                maxSizeMb={60}
+              />
             </div>
             <Card className="space-y-3 border-dashed p-4">
               <div className="flex items-center justify-between gap-3">

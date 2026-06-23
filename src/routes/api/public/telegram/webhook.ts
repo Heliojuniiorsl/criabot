@@ -1,7 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createHash } from "node:crypto";
 
-import { localDb, sqlite, upsertTelegramGroup } from "@/lib/database.server";
+import {
+  localDb,
+  migrateTelegramGroupChatId,
+  sqlite,
+  upsertTelegramGroup,
+} from "@/lib/database.server";
 import { resolveSalesBotRuntimeByWebhookSecret } from "@/lib/sales-bot-registry.server";
 import { enterSalesBotRuntime } from "@/lib/sales-bot-runtime.server";
 import {
@@ -471,6 +476,26 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
           if (update.message) {
             const message = update.message;
             const chatId = message.chat.id;
+            if (message.migrate_to_chat_id) {
+              migrateTelegramGroupChatId(Number(chatId), Number(message.migrate_to_chat_id));
+              await syncGroup(
+                {
+                  ...message.chat,
+                  id: Number(message.migrate_to_chat_id),
+                  type: "supergroup",
+                },
+                { isActive: true, loadMemberCount: true },
+              );
+              return Response.json({ ok: true, groupMigrated: true });
+            }
+            if (message.migrate_from_chat_id) {
+              migrateTelegramGroupChatId(Number(message.migrate_from_chat_id), Number(chatId));
+              await syncGroup(message.chat, {
+                isActive: true,
+                loadMemberCount: true,
+              });
+              return Response.json({ ok: true, groupMigrated: true });
+            }
             if (isManagedTelegramChat(message.chat) && message.chat.type !== "channel") {
               await syncGroup(message.chat, { isActive: true });
               return Response.json({ ok: true, groupActivity: true });

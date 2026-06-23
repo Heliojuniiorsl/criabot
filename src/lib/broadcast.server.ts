@@ -1,5 +1,11 @@
 // Server-only logic to deliver a broadcast (automated message) to every bot user.
-import { copyMessage, sendMessage, sendPhoto, type InlineKeyboard } from "@/lib/telegram.server";
+import {
+  copyMessage,
+  sendMessage,
+  sendPhoto,
+  sendVideo,
+  type InlineKeyboard,
+} from "@/lib/telegram.server";
 import { sqlite } from "@/lib/database.server";
 
 export type BroadcastButton = {
@@ -100,6 +106,17 @@ function validateButtons(buttons: BroadcastButton[]) {
   }
 }
 
+function isVideoMedia(value: string) {
+  return (
+    /^telegram-file:\/\/video\//i.test(value) || /\.(mp4|mov|m4v|webm)(?:[?#].*)?$/i.test(value)
+  );
+}
+
+function resolveBroadcastMedia(value: string) {
+  const telegramFile = /^telegram-file:\/\/(?:photo|video)\/(.+)$/i.exec(value);
+  return telegramFile?.[1] ?? value;
+}
+
 // Delivers a single broadcast to all users and stamps last_sent_at.
 // Returns the number of users reached.
 export async function sendBroadcast(sb: any, b: BroadcastRow): Promise<number> {
@@ -165,7 +182,12 @@ export async function sendBroadcast(sb: any, b: BroadcastRow): Promise<number> {
   for (const chatId of recipients) {
     try {
       if (b.image_url) {
-        await sendPhoto(chatId, b.image_url, b.message, keyboard);
+        const media = resolveBroadcastMedia(b.image_url);
+        if (isVideoMedia(b.image_url)) {
+          await sendVideo(chatId, media, b.message, keyboard);
+        } else {
+          await sendPhoto(chatId, media, b.message, keyboard);
+        }
       } else {
         await sendMessage(chatId, b.message, keyboard);
       }
@@ -211,7 +233,12 @@ export async function sendGroupBroadcast(sb: any, broadcast: GroupBroadcastRow):
   validateButtons(broadcast.buttons);
   const keyboard = buildKeyboard(broadcast.buttons, { openPlansInPrivate: true });
   if (broadcast.image_url) {
-    await sendPhoto(group.telegram_chat_id, broadcast.image_url, broadcast.message, keyboard);
+    const media = resolveBroadcastMedia(broadcast.image_url);
+    if (isVideoMedia(broadcast.image_url)) {
+      await sendVideo(group.telegram_chat_id, media, broadcast.message, keyboard);
+    } else {
+      await sendPhoto(group.telegram_chat_id, media, broadcast.message, keyboard);
+    }
   } else {
     await sendMessage(group.telegram_chat_id, broadcast.message, keyboard);
   }

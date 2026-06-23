@@ -223,6 +223,70 @@ describe("SQLite local", () => {
     });
   });
 
+  it("consolida um grupo migrado para supergrupo sem perder automacoes", async () => {
+    database.upsertTelegramGroup({
+      telegramChatId: -55667788,
+      title: "Grupo migrado",
+      type: "group",
+      botStatus: "member",
+      isActive: true,
+      memberCount: 12,
+    });
+    const oldGroup = database
+      .getTelegramGroups()
+      .find((item) => item.telegram_chat_id === -55667788)!;
+    await database.localDb.from("group_broadcasts").insert({
+      group_id: oldGroup.id,
+      title: "Mensagem preservada",
+      message: "A automacao deve acompanhar o supergrupo.",
+      interval_minutes: 10,
+      is_active: false,
+    });
+
+    expect(database.migrateTelegramGroupChatId(-55667788, -10055667788)).toBe(true);
+
+    const groups = database.getTelegramGroups().filter((item) => item.title === "Grupo migrado");
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toMatchObject({
+      telegram_chat_id: -10055667788,
+      type: "supergroup",
+    });
+    const broadcasts = await database.localDb
+      .from("group_broadcasts")
+      .select("*")
+      .eq("group_id", groups[0].id);
+    expect(broadcasts.data).toHaveLength(1);
+    expect(broadcasts.data[0].title).toBe("Mensagem preservada");
+  });
+
+  it("remove registros antigos duplicados quando o supergrupo ja existe", () => {
+    database.upsertTelegramGroup({
+      telegramChatId: -44556677,
+      title: "Mesmo grupo",
+      type: "group",
+      botStatus: "member",
+      isActive: true,
+      memberCount: 8,
+    });
+    database.upsertTelegramGroup({
+      telegramChatId: -10044556677,
+      title: "Mesmo grupo",
+      type: "supergroup",
+      botStatus: "administrator",
+      isActive: true,
+      memberCount: 8,
+    });
+
+    const matchingGroups = database
+      .getTelegramGroups()
+      .filter((item) => item.title === "Mesmo grupo");
+    expect(matchingGroups).toHaveLength(1);
+    expect(matchingGroups[0]).toMatchObject({
+      telegram_chat_id: -10044556677,
+      type: "supergroup",
+    });
+  });
+
   it("libera mensagens automaticas de grupos pelo intervalo em minutos", async () => {
     database.upsertTelegramGroup({
       telegramChatId: -1001234567891,
@@ -348,6 +412,75 @@ describe("SQLite local", () => {
       "precisa de um link completo",
     );
     expect(fetchMock).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it("envia video nas mensagens automaticas de grupos", async () => {
+    vi.stubEnv("TELEGRAM_BOT_TOKEN", "123456:test-token");
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, result: {} }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const group = database
+      .getTelegramGroups()
+      .find((item) => item.telegram_chat_id === -1001234567891)!;
+    const message = await database.localDb
+      .from("group_broadcasts")
+      .insert({
+        group_id: group.id,
+        title: "Video automatico",
+        message: "",
+        image_url: "https://example.com/video.mp4",
+        buttons: [],
+        interval_minutes: 60,
+        is_active: false,
+      })
+      .select("*")
+      .single();
+    const { sendGroupBroadcast } = await import("./broadcast.server");
+
+    await sendGroupBroadcast(database.localDb, message.data);
+
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/sendVideo");
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    expect(body.video).toBe("https://example.com/video.mp4");
+    vi.unstubAllGlobals();
+  });
+
+  it("envia video nas mensagens automaticas privadas", async () => {
+    vi.stubEnv("TELEGRAM_BOT_TOKEN", "123456:test-token");
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, result: {} }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const broadcast = await database.localDb
+      .from("broadcasts")
+      .insert({
+        title: "Video privado",
+        message: "Legenda do video",
+        image_url: "https://example.com/campanha.webm",
+        buttons: [],
+        interval_minutes: 60,
+        audience_type: "all",
+        audience_value: null,
+        activity_days: 30,
+        is_active: false,
+      })
+      .select("*")
+      .single();
+    const { sendBroadcast } = await import("./broadcast.server");
+
+    const sent = await sendBroadcast(database.localDb, broadcast.data);
+
+    expect(sent).toBeGreaterThan(0);
+    expect(fetchMock.mock.calls.length).toBe(sent);
+    expect(fetchMock.mock.calls.every((call) => String(call[0]).includes("/sendVideo"))).toBe(true);
     vi.unstubAllGlobals();
   });
 

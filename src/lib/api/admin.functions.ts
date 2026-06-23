@@ -1153,16 +1153,26 @@ const groupBroadcastButtonSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 
-const groupBroadcastSchema = z.object({
-  id: uuid.optional(),
-  group_id: uuid,
-  title: z.string().min(1).max(160),
-  message: z.string().min(1).max(4000),
-  image_url: z.string().max(1000).optional().nullable(),
-  buttons: z.array(groupBroadcastButtonSchema).max(6),
-  interval_minutes: z.number().int().min(1).max(525600),
-  is_active: z.boolean(),
-});
+const groupBroadcastSchema = z
+  .object({
+    id: uuid.optional(),
+    group_id: uuid,
+    title: z.string().min(1).max(160),
+    message: z.string().trim().max(4000),
+    image_url: z.string().max(1000).optional().nullable(),
+    buttons: z.array(groupBroadcastButtonSchema).max(6),
+    interval_minutes: z.number().int().min(1).max(525600),
+    is_active: z.boolean(),
+  })
+  .superRefine((value, context) => {
+    if (!value.message && !value.image_url) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["message"],
+        message: "Informe o texto, uma foto ou um video",
+      });
+    }
+  });
 
 export const listGroupBroadcasts = createServerFn({ method: "GET" })
   .validator(z.object({ group_id: uuid }))
@@ -1760,7 +1770,7 @@ const broadcastSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["message"],
-        message: "Informe o texto ou uma foto para a mensagem",
+        message: "Informe o texto, uma foto ou um video para a mensagem",
       });
     }
     if (value.content_kind === "telegram_message") {
