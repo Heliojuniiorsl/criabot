@@ -54,6 +54,7 @@ function getToken(): string {
 
 type InlineKeyboard = {
   text: string;
+  style?: "danger" | "success" | "primary";
   callback_data?: string;
   url?: string;
   copy_text?: { text: string };

@@ -53,6 +53,18 @@ type Plan = {
   name: string;
   description: string | null;
   button_label: string | null;
+  button_color:
+    | "default"
+    | "success"
+    | "danger"
+    | "primary"
+    | "red"
+    | "green"
+    | "blue"
+    | "orange"
+    | "yellow"
+    | "purple"
+    | "pink";
   detail_message: string | null;
   description_mode: "custom" | "telegram_message";
   description_source_chat_id: number | string | null;
@@ -68,6 +80,25 @@ type Plan = {
   is_active: boolean;
   sort_order: number;
 };
+
+const telegramButtonStyles = [
+  { value: "default", label: "Padrão do Telegram" },
+  { value: "success", label: "Verde" },
+  { value: "primary", label: "Azul" },
+  { value: "danger", label: "Vermelho" },
+] as const;
+
+function normalizeTelegramButtonStyle(value?: string | null) {
+  if (value === "success" || value === "green") return "success";
+  if (value === "danger" || value === "red") return "danger";
+  if (value === "primary" || value === "blue") return "primary";
+  return "default";
+}
+
+function telegramButtonStyleLabel(value?: string | null) {
+  const normalized = normalizeTelegramButtonStyle(value);
+  return telegramButtonStyles.find((style) => style.value === normalized)?.label ?? "Padrão";
+}
 
 const inputDate = (value?: string | null) =>
   value ? new Date(value).toISOString().slice(0, 16) : "";
@@ -142,6 +173,7 @@ function SalesPlans() {
       id: editing?.id,
       name: String(f.get("name")),
       button_label: String(f.get("button_label") || ""),
+      button_color: String(f.get("button_color") || "default"),
       description: planMessage,
       detail_message: planMessage,
       description_mode: descriptionMode,
@@ -203,6 +235,24 @@ function SalesPlans() {
                 <p className="text-xs text-muted-foreground">
                   Se ficar vazio, o bot usa nome e preço. Variáveis: {"{{nome}}"}, {"{{preco}}"} e{" "}
                   {"{{validade}}"}.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="button_color">Cor real do botão no Telegram</Label>
+                <select
+                  id="button_color"
+                  name="button_color"
+                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                  defaultValue={normalizeTelegramButtonStyle(editing?.button_color)}
+                >
+                  {telegramButtonStyles.map((style) => (
+                    <option key={style.value} value={style.value}>
+                      {style.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  O Telegram aceita somente estes estilos oficiais: verde, azul, vermelho ou padrão.
                 </p>
               </div>
               <Card className="space-y-4 border-dashed p-4">
@@ -395,6 +445,7 @@ function SalesPlans() {
             <TableRow>
               <TableHead>Ordem</TableHead>
               <TableHead>Nome</TableHead>
+              <TableHead>Cor</TableHead>
               <TableHead>Preço</TableHead>
               <TableHead>Duração</TableHead>
               <TableHead>Status</TableHead>
@@ -404,7 +455,7 @@ function SalesPlans() {
           <TableBody>
             {plans.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground">
+                <TableCell colSpan={7} className="text-center text-muted-foreground">
                   Nenhum plano cadastrado.
                 </TableCell>
               </TableRow>
@@ -434,6 +485,7 @@ function SalesPlans() {
                   </div>
                 </TableCell>
                 <TableCell className="font-medium">{p.name}</TableCell>
+                <TableCell>{telegramButtonStyleLabel(p.button_color)}</TableCell>
                 <TableCell>
                   {p.promo_price !== null ? (
                     <>

@@ -93,6 +93,14 @@ function planListButtonLabel(plan: Record<string, any>) {
   return `${plan.name} — ${fmtPrice(price)}`;
 }
 
+function planButtonStyle(plan: Record<string, any>) {
+  const value = String(plan.button_color ?? "default");
+  if (value === "success" || value === "green") return "success";
+  if (value === "danger" || value === "red") return "danger";
+  if (value === "primary" || value === "blue") return "primary";
+  return undefined;
+}
+
 function planDetailText(plan: Record<string, any>, price: number) {
   const custom = String(plan.detail_message ?? "").trim();
   if (custom) return escapeHtml(applyPlanTemplate(custom, plan, price));
@@ -287,6 +295,7 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
             keyboard.push([
               {
                 text: planListButtonLabel(plan),
+                style: planButtonStyle(plan),
                 callback_data: `plan_${plan.id}`,
               },
             ]);

@@ -1274,7 +1274,19 @@ const planSchema = z
     description: z.string().max(2000).optional().nullable(),
     button_label: z.string().trim().max(80).optional().nullable(),
     button_color: z
-      .enum(["default", "red", "orange", "yellow", "green", "blue", "purple", "pink"])
+      .enum([
+        "default",
+        "success",
+        "danger",
+        "primary",
+        "red",
+        "orange",
+        "yellow",
+        "green",
+        "blue",
+        "purple",
+        "pink",
+      ])
       .default("default"),
     detail_message: z.string().max(4000).optional().nullable(),
     description_mode: z.enum(["custom", "telegram_message"]).default("custom"),
@@ -1312,6 +1324,13 @@ const planSchema = z
     }
   });
 
+function normalizeTelegramButtonStyle(value?: string | null) {
+  if (value === "success" || value === "green") return "success";
+  if (value === "danger" || value === "red") return "danger";
+  if (value === "primary" || value === "blue") return "primary";
+  return "default";
+}
+
 export const savePlan = createServerFn({ method: "POST" })
   .validator(planSchema)
   .handler(async ({ data }) => {
@@ -1327,7 +1346,7 @@ export const savePlan = createServerFn({ method: "POST" })
     const fields = {
       ...rawFields,
       button_label: rawFields.button_label?.trim() || null,
-      button_color: rawFields.button_color ?? "default",
+      button_color: normalizeTelegramButtonStyle(rawFields.button_color),
       detail_message: rawFields.detail_message?.trim() || null,
       sort_order:
         rawFields.sort_order ??
