@@ -635,7 +635,8 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
               await sendMessage(chatId, "Confirme sua maioridade primeiro com /start.", ageGate);
             } else if (text.startsWith("/planos")) await showPlans({ chatId });
             else if (text.startsWith("/ofertas")) await showPlans({ chatId });
-            else if (text.startsWith("/meusacessos")) await showAccess({ chatId }, user.id);
+            else if (text.startsWith("/meusacessos") || text.startsWith("/meus_acessos"))
+              await showAccess({ chatId }, user.id);
             else if (text.startsWith("/suporte")) await showSupport({ chatId });
             else if (text.startsWith("/termos")) await showTerms({ chatId });
             else await sendMessage(chatId, "Use /start para abrir o menu.", mainMenu);

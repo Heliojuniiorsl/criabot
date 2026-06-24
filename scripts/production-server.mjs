@@ -18,6 +18,22 @@ const salesWebhookUpdates = [
   "my_chat_member",
   "chat_join_request",
 ];
+const imageWebhookUpdates = ["message", "callback_query", "my_chat_member"];
+const salesBotCommands = [
+  { command: "start", description: "Abrir planos e ofertas" },
+  { command: "planos", description: "Ver planos disponiveis" },
+  { command: "ofertas", description: "Ver ofertas ativas" },
+  { command: "meus_acessos", description: "Ver meus acessos VIP" },
+  { command: "suporte", description: "Falar com suporte" },
+  { command: "termos", description: "Termos e regras" },
+];
+const imageBotCommands = [
+  { command: "start", description: "Abrir menu principal" },
+  { command: "videos", description: "Receber videos" },
+  { command: "favoritos", description: "Ver favoritos" },
+  { command: "premium", description: "Ver planos premium" },
+  { command: "idioma", description: "Trocar idioma" },
+];
 
 if (!handler || typeof handler.fetch !== "function") {
   throw new Error("O bundle TanStack não exporta um handler fetch válido");
@@ -116,22 +132,45 @@ const server = createServer(async (request, response) => {
 async function setSalesWebhook(label, token, publicUrl) {
   if (!token || !publicUrl.startsWith("https://")) return;
   const secret = createHash("sha256").update(`telegram-webhook:${token}`).digest("base64url");
-  const response = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
+  await telegramPost(token, "setWebhook", label, {
+    url: `${publicUrl}/api/public/telegram/webhook`,
+    secret_token: secret,
+    allowed_updates: salesWebhookUpdates,
+    drop_pending_updates: false,
+  });
+  await setTelegramCommandsMenu(token, salesBotCommands, label);
+  console.log(`[boot] Webhook de ${label} sincronizado.`);
+}
+
+async function setImageWebhook(label, token, publicUrl) {
+  if (!token || !publicUrl.startsWith("https://")) return;
+  const secret = createHash("sha256").update(`telegram-image-webhook:${token}`).digest("base64url");
+  await telegramPost(token, "setWebhook", label, {
+    url: `${publicUrl}/api/public/telegram/image-webhook`,
+    secret_token: secret,
+    allowed_updates: imageWebhookUpdates,
+    drop_pending_updates: false,
+  });
+  await setTelegramCommandsMenu(token, imageBotCommands, label);
+  console.log(`[boot] Webhook de ${label} sincronizado.`);
+}
+
+async function telegramPost(token, method, label, body) {
+  const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      url: `${publicUrl}/api/public/telegram/webhook`,
-      secret_token: secret,
-      allowed_updates: salesWebhookUpdates,
-      drop_pending_updates: false,
-    }),
+    body: JSON.stringify(body),
   });
   const payload = await response.json().catch(() => null);
   if (!response.ok || !payload?.ok) {
     const detail = payload?.description ?? `HTTP ${response.status}`;
-    throw new Error(`Telegram recusou o webhook de ${label}: ${detail}`);
+    throw new Error(`Telegram recusou ${method} de ${label}: ${detail}`);
   }
-  console.log(`[boot] Webhook de ${label} sincronizado.`);
+}
+
+async function setTelegramCommandsMenu(token, commands, label) {
+  await telegramPost(token, "setMyCommands", label, { commands });
+  await telegramPost(token, "setChatMenuButton", label, { menu_button: { type: "commands" } });
 }
 
 function listSalesClonesForWebhookSync() {
@@ -253,7 +292,10 @@ async function syncSalesWebhooksOnBoot() {
   const publicUrl = String(process.env.PUBLIC_BASE_URL ?? "").replace(/\/$/, "");
   if (!publicUrl.startsWith("https://")) return;
 
-  const tasks = [setSalesWebhook("Bruna", process.env.TELEGRAM_BOT_TOKEN, publicUrl)];
+  const tasks = [
+    setSalesWebhook("Bruna", process.env.TELEGRAM_BOT_TOKEN, publicUrl),
+    setImageWebhook("UpMidias", process.env.IMAGE_BOT_TOKEN, publicUrl),
+  ];
   for (const clone of listSalesClonesForWebhookSync()) {
     tasks.push(setSalesWebhook(`clone @${clone.username}`, clone.token, publicUrl));
   }

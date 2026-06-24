@@ -10,6 +10,7 @@ import {
   getBotInfoWithToken,
   getBotPhotoDataUrlWithToken,
   getWebhookInfoWithToken,
+  setBotCommandsMenuWithToken,
   setWebhookWithToken,
 } from "@/lib/telegram.server";
 
@@ -25,6 +26,7 @@ type ManagedBotConfig = {
   fallbackName: string;
   webhookPath: string;
   allowedUpdates: string[];
+  commands: { command: string; description: string }[];
   isClone: boolean;
 };
 
@@ -37,6 +39,21 @@ const salesUpdates = [
 ];
 const imageUpdates = ["message", "callback_query", "my_chat_member"];
 const botActionLocks = new Map<ManagedBotKey, Promise<unknown>>();
+const salesBotCommands = [
+  { command: "start", description: "Abrir planos e ofertas" },
+  { command: "planos", description: "Ver planos disponiveis" },
+  { command: "ofertas", description: "Ver ofertas ativas" },
+  { command: "meus_acessos", description: "Ver meus acessos VIP" },
+  { command: "suporte", description: "Falar com suporte" },
+  { command: "termos", description: "Termos e regras" },
+];
+const imageBotCommands = [
+  { command: "start", description: "Abrir menu principal" },
+  { command: "videos", description: "Receber videos" },
+  { command: "favoritos", description: "Ver favoritos" },
+  { command: "premium", description: "Ver planos premium" },
+  { command: "idioma", description: "Trocar idioma" },
+];
 
 function staticConfigs(): ManagedBotConfig[] {
   return [
@@ -48,6 +65,7 @@ function staticConfigs(): ManagedBotConfig[] {
       fallbackName: "Bot de vendas",
       webhookPath: "/api/public/telegram/webhook",
       allowedUpdates: salesUpdates,
+      commands: salesBotCommands,
       isClone: false,
     },
     {
@@ -58,6 +76,7 @@ function staticConfigs(): ManagedBotConfig[] {
       fallbackName: "Bot de imagens",
       webhookPath: "/api/public/telegram/image-webhook",
       allowedUpdates: imageUpdates,
+      commands: imageBotCommands,
       isClone: false,
     },
   ];
@@ -72,6 +91,7 @@ function cloneConfig(clone: SalesBotClone): ManagedBotConfig {
     fallbackName: clone.display_name,
     webhookPath: "/api/public/telegram/webhook",
     allowedUpdates: salesUpdates,
+    commands: salesBotCommands,
     isClone: true,
   };
 }
@@ -231,6 +251,7 @@ async function controlManagedBotUnlocked(key: ManagedBotKey, action: ManagedBotA
       deriveManagedBotWebhookSecret(config.kind, token),
       config.allowedUpdates,
     );
+    await setBotCommandsMenuWithToken(token, config.commands);
   }
 
   const webhook = await getWebhookInfoWithToken(token);

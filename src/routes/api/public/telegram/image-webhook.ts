@@ -2696,7 +2696,10 @@ export const Route = createFileRoute("/api/public/telegram/image-webhook")({
         const languageButtons = imageBotLanguages.map(
           (language) => getImageBotTranslation(language).languageButton,
         );
-        if (languageButtons.some((label) => matchesButton(text, label))) {
+        if (
+          text.startsWith("/idioma") ||
+          languageButtons.some((label) => matchesButton(text, label))
+        ) {
           await sendMessageWithTokenReplyKeyboard(
             token,
             chatId,
@@ -2767,6 +2770,7 @@ export const Route = createFileRoute("/api/public/telegram/image-webhook")({
           (language) => getImageBotTranslation(language).premiumButton,
         );
         if (
+          text.startsWith("/premium") ||
           matchesButton(text, settings.premium_offer_button_label, [
             "Libere acesso total ao bot",
             ...translatedPremiumLabels,
@@ -2804,6 +2808,7 @@ export const Route = createFileRoute("/api/public/telegram/image-webhook")({
           (language) => getImageBotTranslation(language).mediaButton,
         );
         const deliveryType = matchesButton(text, settings.random_button_label, [
+          "/videos",
           settings.photo_button_label,
           settings.video_button_label,
           ...legacyMediaLabels.random,
@@ -2936,6 +2941,7 @@ export const Route = createFileRoute("/api/public/telegram/image-webhook")({
           (language) => getImageBotTranslation(language).favoritesButton,
         );
         if (
+          text.startsWith("/favoritos") ||
           matchesButton(text, settings.favorites_button_label, [
             ...legacyMediaLabels.favorites,
             ...translatedFavoriteLabels,

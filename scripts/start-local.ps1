@@ -179,6 +179,33 @@ function Set-TelegramWebhook($Label, $Token, $Namespace, $Url, $AllowedUpdates) 
   Write-Step "$Label conectado em $Url"
 }
 
+function Set-TelegramCommandsMenu($Label, $Token, $Commands) {
+  if ([string]::IsNullOrWhiteSpace($Token)) {
+    return
+  }
+
+  $commandsBody = @{
+    commands = $Commands
+  } | ConvertTo-Json -Depth 5
+  $commandsEndpoint = "https://api.telegram.org/bot$Token/setMyCommands"
+  $commandsResponse = Invoke-RestMethod -Uri $commandsEndpoint -Method Post -ContentType "application/json" -Body $commandsBody -TimeoutSec 30
+  if (!$commandsResponse.ok) {
+    throw "Telegram recusou os comandos do $Label"
+  }
+
+  $menuBody = @{
+    menu_button = @{
+      type = "commands"
+    }
+  } | ConvertTo-Json -Depth 5
+  $menuEndpoint = "https://api.telegram.org/bot$Token/setChatMenuButton"
+  $menuResponse = Invoke-RestMethod -Uri $menuEndpoint -Method Post -ContentType "application/json" -Body $menuBody -TimeoutSec 30
+  if (!$menuResponse.ok) {
+    throw "Telegram recusou o menu do $Label"
+  }
+  Write-Step "$Label com menu nativo de comandos configurado"
+}
+
 New-Item -ItemType Directory -Path $LogsDir -Force | Out-Null
 
 if (!(Test-Path -LiteralPath $Cloudflared)) {
@@ -228,16 +255,33 @@ if (!(Wait-ForHttp $publicUrl 60)) {
 if (!$SkipWebhooks) {
   Write-Step "Reconectando webhooks dos bots"
   $envValues = Read-EnvFile $EnvPath
+  $salesCommands = @(
+    @{ command = "start"; description = "Abrir planos e ofertas" },
+    @{ command = "planos"; description = "Ver planos disponiveis" },
+    @{ command = "ofertas"; description = "Ver ofertas ativas" },
+    @{ command = "meus_acessos"; description = "Ver meus acessos VIP" },
+    @{ command = "suporte"; description = "Falar com suporte" },
+    @{ command = "termos"; description = "Termos e regras" }
+  )
+  $imageCommands = @(
+    @{ command = "start"; description = "Abrir menu principal" },
+    @{ command = "videos"; description = "Receber videos" },
+    @{ command = "favoritos"; description = "Ver favoritos" },
+    @{ command = "premium"; description = "Ver planos premium" },
+    @{ command = "idioma"; description = "Trocar idioma" }
+  )
   Set-TelegramWebhook "Bot de vendas" `
     $envValues["TELEGRAM_BOT_TOKEN"] `
     "telegram-webhook" `
     "$publicUrl/api/public/telegram/webhook" `
     @("message", "channel_post", "callback_query", "my_chat_member", "chat_join_request")
+  Set-TelegramCommandsMenu "Bot de vendas" $envValues["TELEGRAM_BOT_TOKEN"] $salesCommands
   Set-TelegramWebhook "UpMidias" `
     $envValues["IMAGE_BOT_TOKEN"] `
     "telegram-image-webhook" `
     "$publicUrl/api/public/telegram/image-webhook" `
     @("message", "callback_query", "my_chat_member")
+  Set-TelegramCommandsMenu "UpMidias" $envValues["IMAGE_BOT_TOKEN"] $imageCommands
   & node (Join-Path $Workspace "scripts/reconnect-sales-clones.mjs") $publicUrl
   if ($LASTEXITCODE -ne 0) {
     Write-Warning "Nao foi possivel reconectar um ou mais clones do bot Bruna."

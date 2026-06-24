@@ -68,6 +68,11 @@ type ReplyKeyboard = {
   input_field_placeholder?: string;
 };
 
+type BotCommand = {
+  command: string;
+  description: string;
+};
+
 async function call(method: string, body: Record<string, unknown>) {
   for (let attempt = 0; attempt <= TELEGRAM_RETRY_ATTEMPTS; attempt++) {
     const timeout = createTimeoutSignal();
@@ -575,6 +580,11 @@ export function getBotInfoWithToken(token: string) {
 
 export function getWebhookInfoWithToken(token: string) {
   return callWithToken(token, "getWebhookInfo", {}).then((response) => response.result);
+}
+
+export async function setBotCommandsMenuWithToken(token: string, commands: BotCommand[]) {
+  await callWithToken(token, "setMyCommands", { commands });
+  await callWithToken(token, "setChatMenuButton", { menu_button: { type: "commands" } });
 }
 
 export function setWebhookWithToken(
