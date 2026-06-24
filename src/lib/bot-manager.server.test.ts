@@ -130,7 +130,6 @@ describe("gerenciador de bots", () => {
       "ofertas",
       "meus_acessos",
       "suporte",
-      "termos",
     ]);
     const menuBody = JSON.parse(String(fetchMock.mock.calls[4][1]?.body));
     expect(menuBody.menu_button.type).toBe("commands");

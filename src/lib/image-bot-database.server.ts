@@ -1733,37 +1733,20 @@ export function claimImageBotGroupAutomationMedia(input: {
   const rawBatchSize = Number.isFinite(input.count) ? Math.trunc(input.count) : 1;
   const batchSize = Math.min(Math.max(rawBatchSize, 1), 20);
   const claim = imageBotSqlite.transaction(() => {
-    const selectAvailable = () =>
-      imageBotSqlite
-        .prepare(
-          `SELECT id, category, media_type, file_id, file_unique_id, caption,
-                  is_active, delivery_count
-           FROM media
-           WHERE category = ?
-             AND is_active = 1
-             AND deleted_at IS NULL
-             AND NOT EXISTS (
-               SELECT 1 FROM group_automation_media_history
-               WHERE group_automation_media_history.automation_id = ?
-                 AND group_automation_media_history.media_id = media.id
-             )
-           ORDER BY RANDOM()
-           LIMIT ?`,
-        )
-        .all(input.category, input.automationId, batchSize) as (Omit<
-        ImageBotMediaRow,
-        "is_active"
-      > & {
-        is_active: number;
-      })[];
-
-    let rows = selectAvailable();
-    if (!rows.length) {
-      imageBotSqlite
-        .prepare("DELETE FROM group_automation_media_history WHERE automation_id = ?")
-        .run(input.automationId);
-      rows = selectAvailable();
-    }
+    const rows = imageBotSqlite
+      .prepare(
+        `SELECT id, category, media_type, file_id, file_unique_id, caption,
+                is_active, delivery_count
+         FROM media
+         WHERE category = ?
+           AND is_active = 1
+           AND deleted_at IS NULL
+         ORDER BY RANDOM()
+         LIMIT ?`,
+      )
+      .all(input.category, batchSize) as (Omit<ImageBotMediaRow, "is_active"> & {
+      is_active: number;
+    })[];
     if (!rows.length) return [];
 
     const now = new Date().toISOString();

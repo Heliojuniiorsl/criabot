@@ -148,7 +148,7 @@ describe("banco independente do UpMidias", () => {
     });
   });
 
-  it("sorteia midias de automacao de grupo sem repetir no ciclo", () => {
+  it("sorteia midias de automacao de grupo permitindo repetir em novos envios", () => {
     const group = database
       .getImageBotGroups()
       .find((item) => item.category === "hetero" && item.is_active);
@@ -208,7 +208,6 @@ describe("banco independente do UpMidias", () => {
     expect(second).toHaveLength(3);
     expect(new Set(first.map((media) => media.id)).size).toBe(3);
     expect(new Set(second.map((media) => media.id)).size).toBe(3);
-    expect(second.some((media) => first.some((previous) => previous.id === media.id))).toBe(false);
   });
 
   it("entrega midia aleatoria com limite contra flood por usuario", () => {

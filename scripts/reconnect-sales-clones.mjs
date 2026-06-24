@@ -18,7 +18,6 @@ const salesBotCommands = [
   { command: "ofertas", description: "Ver ofertas ativas" },
   { command: "meus_acessos", description: "Ver meus acessos VIP" },
   { command: "suporte", description: "Falar com suporte" },
-  { command: "termos", description: "Termos e regras" },
 ];
 
 async function telegramPost(token, method, body) {

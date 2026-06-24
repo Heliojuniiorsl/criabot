@@ -25,7 +25,6 @@ const salesBotCommands = [
   { command: "ofertas", description: "Ver ofertas ativas" },
   { command: "meus_acessos", description: "Ver meus acessos VIP" },
   { command: "suporte", description: "Falar com suporte" },
-  { command: "termos", description: "Termos e regras" },
 ];
 const imageBotCommands = [
   { command: "start", description: "Abrir menu principal" },
