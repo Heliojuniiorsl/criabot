@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve, sep } from "node:path";
 
 import { getSalesBotRuntime } from "@/lib/sales-bot-runtime.server";
@@ -994,17 +994,11 @@ function claimDueGroupBroadcasts() {
   return candidates.map((row) => ({ ...row, locked_at: now.toISOString() }));
 }
 
-export async function clonePrimarySalesDatabase(destinationPath: string) {
-  const resolvedDestination = resolve(destinationPath);
-  if (resolvedDestination === databasePath) {
-    throw new Error("O banco do clone precisa ser diferente do banco principal");
-  }
+function sqlString(value: string) {
+  return `'${value.replaceAll("'", "''")}'`;
+}
 
-  mkdirSync(dirname(resolvedDestination), { recursive: true });
-  primarySqlite.pragma("wal_checkpoint(PASSIVE)");
-  await primarySqlite.backup(resolvedDestination);
-
-  const clone = configureDatabase(new Database(resolvedDestination));
+function clearOperationalSalesData(database: Database.Database) {
   const operationalTables = [
     "telegram_access_grants",
     "customer_events",
@@ -1021,24 +1015,66 @@ export async function clonePrimarySalesDatabase(destinationPath: string) {
   ];
   const existingTables = new Set(
     (
-      clone.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{
+      database.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{
         name: string;
       }>
     ).map((row) => row.name),
   );
 
-  clone.pragma("foreign_keys = OFF");
-  const clearOperationalData = clone.transaction(() => {
+  database.pragma("foreign_keys = OFF");
+  const clearOperationalData = database.transaction(() => {
     for (const table of operationalTables) {
-      if (existingTables.has(table)) clone.exec(`DELETE FROM ${table}`);
+      if (existingTables.has(table)) database.exec(`DELETE FROM ${table}`);
     }
     if (existingTables.has("broadcasts")) {
-      clone.exec("UPDATE broadcasts SET last_sent_at = NULL, locked_at = NULL");
+      database.exec("UPDATE broadcasts SET last_sent_at = NULL, locked_at = NULL");
     }
   });
   clearOperationalData();
-  clone.pragma("foreign_keys = ON");
-  clone.close();
+  database.pragma("foreign_keys = ON");
+}
+
+function clonePrimarySalesDatabaseSync(destinationPath: string, overwriteInvalid = false) {
+  const resolvedDestination = resolve(destinationPath);
+  if (resolvedDestination === databasePath) {
+    throw new Error("O banco do clone precisa ser diferente do banco principal");
+  }
+
+  mkdirSync(dirname(resolvedDestination), { recursive: true });
+  if (existsSync(resolvedDestination)) {
+    const existing = configureDatabase(new Database(resolvedDestination));
+    try {
+      const hasSettings = existing
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'bot_settings'")
+        .get();
+      if (hasSettings) return;
+    } finally {
+      existing.close();
+    }
+    if (!overwriteInvalid) {
+      throw new Error(`Banco do clone invalido ou vazio: ${resolvedDestination}`);
+    }
+    rmSync(resolvedDestination, { force: true });
+    rmSync(`${resolvedDestination}-shm`, { force: true });
+    rmSync(`${resolvedDestination}-wal`, { force: true });
+  }
+
+  primarySqlite.pragma("wal_checkpoint(FULL)");
+  primarySqlite.exec(`VACUUM INTO ${sqlString(resolvedDestination)}`);
+  const clone = configureDatabase(new Database(resolvedDestination));
+  try {
+    clearOperationalSalesData(clone);
+  } finally {
+    clone.close();
+  }
+}
+
+export async function clonePrimarySalesDatabase(destinationPath: string) {
+  clonePrimarySalesDatabaseSync(destinationPath);
+}
+
+export function ensureSalesCloneDatabase(destinationPath: string) {
+  clonePrimarySalesDatabaseSync(destinationPath, true);
 }
 
 export function closeSalesBotCloneDatabases() {

@@ -21,6 +21,7 @@ beforeAll(async () => {
   vi.stubEnv("DATABASE_PATH", join(testDirectory, "test.sqlite"));
   vi.stubEnv("MEDIA_DIR", join(testDirectory, "media"));
   vi.stubEnv("TELEGRAM_BOT_TOKEN", "123456:sales-token");
+  vi.stubEnv("DANI_MILLER_BOT_TOKEN", "");
   vi.stubEnv("IMAGE_BOT_TOKEN", "");
   vi.stubEnv("PUBLIC_BASE_URL", "https://bot.example.com");
   vi.resetModules();
@@ -36,6 +37,13 @@ beforeEach(() => {
       return new Response("", { status: 200 });
     }
     if (url.endsWith("/getMe")) {
+      if (url.includes("777777:dani-token")) {
+        return telegramResponse({
+          id: 777777,
+          first_name: "Dani Miller",
+          username: "danimiller_bot",
+        });
+      }
       return telegramResponse({ id: 123456, first_name: "Bot Vendas", username: "vendas_bot" });
     }
     if (url.endsWith("/getWebhookInfo")) {
@@ -118,5 +126,23 @@ describe("gerenciador de bots", () => {
     const body = JSON.parse(String(fetchMock.mock.calls[2][1]?.body));
     expect(body.url).toBe("https://bot.example.com/api/public/telegram/image-webhook");
     expect(body.allowed_updates).toEqual(["message", "callback_query", "my_chat_member"]);
+  });
+
+  it("mostra o Dani Miller quando o token proprio esta configurado", async () => {
+    vi.stubEnv("DANI_MILLER_BOT_TOKEN", "777777:dani-token");
+
+    const bots = await manager.listManagedBots();
+
+    expect(bots).toContainEqual(
+      expect.objectContaining({
+        key: "sales-clone:danimiller-bot",
+        kind: "sales",
+        is_clone: true,
+        display_name: "Dani Miller",
+        username: "danimiller_bot",
+        panel_path: "/danimiller_bot/dashboard",
+        status: "online",
+      }),
+    );
   });
 });

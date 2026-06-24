@@ -6,24 +6,38 @@ import { dirname, resolve } from "node:path";
 const publicUrl = String(process.argv[2] ?? "").replace(/\/$/, "");
 if (!publicUrl.startsWith("https://")) process.exit(0);
 
+const clones = [];
+if (process.env.DANI_MILLER_BOT_TOKEN?.trim()) {
+  clones.push({ username: "danimiller_bot", token: process.env.DANI_MILLER_BOT_TOKEN.trim() });
+}
+const envUsernames = new Set(clones.map((clone) => clone.username.toLowerCase()));
+const deprecatedUsernames = new Set(["bruninhabb_bot"]);
+
 const primaryDatabasePath = resolve(process.env.DATABASE_PATH ?? "data/botvendassl.sqlite");
 const registryPath = resolve(
   process.env.BOT_REGISTRY_PATH ?? dirname(primaryDatabasePath),
   process.env.BOT_REGISTRY_PATH ? "" : "bot-registry.sqlite",
 );
-if (!existsSync(registryPath)) process.exit(0);
-
-const registry = new Database(registryPath, { readonly: true });
-const table = registry
-  .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'sales_bot_clones'")
-  .get();
-if (!table) {
+if (existsSync(registryPath)) {
+  const registry = new Database(registryPath, { readonly: true });
+  const table = registry
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'sales_bot_clones'")
+    .get();
+  if (table) {
+    clones.push(
+      ...registry
+        .prepare("SELECT username, token FROM sales_bot_clones")
+        .all()
+        .filter((clone) => !deprecatedUsernames.has(String(clone.username).toLowerCase()))
+        .filter((clone) => !envUsernames.has(String(clone.username).toLowerCase())),
+    );
+  }
   registry.close();
-  process.exit(0);
 }
 
-const clones = registry.prepare("SELECT username, token FROM sales_bot_clones").all();
-registry.close();
+if (!clones.length) {
+  process.exit(0);
+}
 
 for (const clone of clones) {
   const secret = createHash("sha256").update(`telegram-webhook:${clone.token}`).digest("base64url");

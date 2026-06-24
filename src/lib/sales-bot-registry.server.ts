@@ -3,7 +3,7 @@ import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
-import { clonePrimarySalesDatabase } from "@/lib/database.server";
+import { clonePrimarySalesDatabase, ensureSalesCloneDatabase } from "@/lib/database.server";
 import type { SalesBotRuntime } from "@/lib/sales-bot-runtime.server";
 import { getBotInfoWithToken } from "@/lib/telegram.server";
 
@@ -27,6 +27,8 @@ const registryPath = resolve(
 mkdirSync(dirname(registryPath), { recursive: true });
 
 const registry = new Database(registryPath);
+const ensuredCloneDatabasePaths = new Set<string>();
+const deprecatedCloneUsernames = new Set(["bruninhabb_bot"]);
 registry.pragma("journal_mode = WAL");
 registry.pragma("busy_timeout = 15000");
 registry.exec(`
@@ -42,12 +44,25 @@ registry.exec(`
   )
 `);
 
+registry
+  .prepare(
+    `DELETE FROM sales_bot_clones
+     WHERE lower(username) IN (${Array.from(deprecatedCloneUsernames)
+       .map(() => "?")
+       .join(", ")})`,
+  )
+  .run(...deprecatedCloneUsernames);
+
 export function closeSalesBotRegistry() {
   if (registry.open) registry.close();
 }
 
 function defaultCloneDatabasePath(id: string) {
   return resolve(dirname(primaryDatabasePath), "sales-bots", `${id}.sqlite`);
+}
+
+function normalizeUsername(username: string) {
+  return username.replace(/^@/, "").trim().toLowerCase();
 }
 
 function isWindowsAbsolutePath(value: string) {
@@ -66,6 +81,12 @@ function resolveCloneDatabasePath(id: string, storedPath: string) {
   return trimmedPath.endsWith(`${id}.sqlite`) ? fallbackPath : resolvedPath;
 }
 
+function ensureCloneDatabase(databasePath: string) {
+  if (ensuredCloneDatabasePaths.has(databasePath)) return;
+  ensureSalesCloneDatabase(databasePath);
+  ensuredCloneDatabasePaths.add(databasePath);
+}
+
 function mapClone(row: Omit<SalesBotClone, "key">): SalesBotClone {
   const databasePath = resolveCloneDatabasePath(row.id, row.database_path);
   if (databasePath !== row.database_path) {
@@ -77,17 +98,48 @@ function mapClone(row: Omit<SalesBotClone, "key">): SalesBotClone {
       console.warn(`[sales-bot-registry:${row.id}] falha ao atualizar caminho do banco`, error);
     }
   }
+  ensureCloneDatabase(databasePath);
   return { ...row, database_path: databasePath, key: `sales-clone:${row.id}` };
 }
 
+function listEnvironmentSalesBotClones(): SalesBotClone[] {
+  const token = process.env.DANI_MILLER_BOT_TOKEN?.trim();
+  if (!token) return [];
+  const id = "danimiller-bot";
+  const databasePath = defaultCloneDatabasePath(id);
+  ensureCloneDatabase(databasePath);
+  const now = new Date().toISOString();
+  return [
+    {
+      id,
+      key: `sales-clone:${id}`,
+      token,
+      telegram_id: "env:DANI_MILLER_BOT_TOKEN",
+      username: "danimiller_bot",
+      display_name: "Dani Miller",
+      database_path: databasePath,
+      created_at: now,
+      updated_at: now,
+    },
+  ];
+}
+
 export function listSalesBotClones() {
+  const envClones = listEnvironmentSalesBotClones();
+  const envUsernames = new Set(envClones.map((clone) => normalizeUsername(clone.username)));
   const rows = registry
     .prepare("SELECT * FROM sales_bot_clones ORDER BY created_at ASC")
     .all() as Array<Omit<SalesBotClone, "key">>;
-  return rows.map(mapClone);
+  const databaseClones = rows
+    .filter((row) => !deprecatedCloneUsernames.has(normalizeUsername(row.username)))
+    .filter((row) => !envUsernames.has(normalizeUsername(row.username)))
+    .map(mapClone);
+  return [...envClones, ...databaseClones];
 }
 
 export function findSalesBotCloneById(id: string) {
+  const envClone = listEnvironmentSalesBotClones().find((clone) => clone.id === id);
+  if (envClone) return envClone;
   const row = registry.prepare("SELECT * FROM sales_bot_clones WHERE id = ?").get(id) as
     | Omit<SalesBotClone, "key">
     | undefined;
@@ -100,6 +152,11 @@ export function findSalesBotCloneByKey(key: string) {
 }
 
 export function findSalesBotCloneByUsername(username: string) {
+  const normalized = normalizeUsername(username);
+  const envClone = listEnvironmentSalesBotClones().find(
+    (clone) => normalizeUsername(clone.username) === normalized,
+  );
+  if (envClone) return envClone;
   const row = registry
     .prepare("SELECT * FROM sales_bot_clones WHERE username = ? COLLATE NOCASE")
     .get(username.replace(/^@/, "")) as Omit<SalesBotClone, "key"> | undefined;
@@ -160,6 +217,11 @@ export async function createSalesBotClone(tokenInput: string) {
   const info = await getBotInfoWithToken(token);
   const username = String(info.username ?? "").trim();
   if (!username) throw new Error("O Telegram nao retornou o usuario deste bot");
+  const envDuplicate = listEnvironmentSalesBotClones().find(
+    (clone) =>
+      clone.token === token || normalizeUsername(clone.username) === normalizeUsername(username),
+  );
+  if (envDuplicate) throw new Error(`O bot @${envDuplicate.username} ja foi adicionado`);
 
   const duplicate = registry
     .prepare(

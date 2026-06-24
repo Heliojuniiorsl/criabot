@@ -135,22 +135,34 @@ async function setSalesWebhook(label, token, publicUrl) {
 }
 
 function listSalesClonesForWebhookSync() {
+  const envClones = [];
+  if (process.env.DANI_MILLER_BOT_TOKEN?.trim()) {
+    envClones.push({ username: "danimiller_bot", token: process.env.DANI_MILLER_BOT_TOKEN.trim() });
+  }
+  const envUsernames = new Set(envClones.map((clone) => clone.username.toLowerCase()));
+  const deprecatedUsernames = new Set(["bruninhabb_bot"]);
+
   const primaryDatabasePath = resolve(process.env.DATABASE_PATH ?? "data/botvendassl.sqlite");
   const registryPath = resolve(
     process.env.BOT_REGISTRY_PATH ?? dirname(primaryDatabasePath),
     process.env.BOT_REGISTRY_PATH ? "" : "bot-registry.sqlite",
   );
-  if (!existsSync(registryPath)) return [];
+  if (!existsSync(registryPath)) return envClones;
 
   const registry = new Database(registryPath, { readonly: true });
   try {
     const table = registry
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'sales_bot_clones'")
       .get();
-    if (!table) return [];
-    return registry
-      .prepare("SELECT username, token FROM sales_bot_clones WHERE token IS NOT NULL AND token != ''")
-      .all();
+    if (!table) return envClones;
+    const databaseClones = registry
+      .prepare(
+        "SELECT username, token FROM sales_bot_clones WHERE token IS NOT NULL AND token != ''",
+      )
+      .all()
+      .filter((clone) => !deprecatedUsernames.has(String(clone.username).toLowerCase()))
+      .filter((clone) => !envUsernames.has(String(clone.username).toLowerCase()));
+    return [...envClones, ...databaseClones];
   } finally {
     registry.close();
   }
