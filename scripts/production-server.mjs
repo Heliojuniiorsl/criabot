@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 import { createHash } from "node:crypto";
-import { createReadStream, existsSync } from "node:fs";
+import { createReadStream, existsSync, mkdirSync, rmSync } from "node:fs";
 import { stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import { dirname, extname, resolve, sep } from "node:path";
@@ -168,6 +168,87 @@ function listSalesClonesForWebhookSync() {
   }
 }
 
+function sqlString(value) {
+  return `'${value.replaceAll("'", "''")}'`;
+}
+
+function cloneDatabaseIsReady(databasePath) {
+  if (!existsSync(databasePath)) return false;
+  const database = new Database(databasePath);
+  try {
+    return Boolean(
+      database
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'bot_settings'")
+        .get(),
+    );
+  } finally {
+    database.close();
+  }
+}
+
+function ensureSalesCloneDatabase(databasePath) {
+  if (cloneDatabaseIsReady(databasePath)) return;
+
+  mkdirSync(dirname(databasePath), { recursive: true });
+  rmSync(databasePath, { force: true });
+  rmSync(`${databasePath}-shm`, { force: true });
+  rmSync(`${databasePath}-wal`, { force: true });
+
+  const primaryDatabasePath = resolve(process.env.DATABASE_PATH ?? "data/botvendassl.sqlite");
+  const primary = new Database(primaryDatabasePath);
+  try {
+    primary.pragma("wal_checkpoint(FULL)");
+    primary.exec(`VACUUM INTO ${sqlString(databasePath)}`);
+  } finally {
+    primary.close();
+  }
+
+  const clone = new Database(databasePath);
+  const operationalTables = [
+    "telegram_access_grants",
+    "customer_events",
+    "bot_sessions",
+    "bot_rate_limits",
+    "payments",
+    "subscriptions",
+    "orders",
+    "users",
+    "group_broadcasts",
+    "telegram_groups",
+    "telegram_updates",
+    "admin_sessions",
+  ];
+  try {
+    clone.pragma("foreign_keys = OFF");
+    const existingTables = new Set(
+      clone
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
+        .all()
+        .map((row) => row.name),
+    );
+    const clearOperationalData = clone.transaction(() => {
+      for (const table of operationalTables) {
+        if (existingTables.has(table)) clone.exec(`DELETE FROM ${table}`);
+      }
+      if (existingTables.has("broadcasts")) {
+        clone.exec("UPDATE broadcasts SET last_sent_at = NULL, locked_at = NULL");
+      }
+    });
+    clearOperationalData();
+    clone.pragma("foreign_keys = ON");
+  } finally {
+    clone.close();
+  }
+}
+
+function ensureProductionSalesCloneDatabases() {
+  if (!process.env.DANI_MILLER_BOT_TOKEN?.trim()) return;
+  const primaryDatabasePath = resolve(process.env.DATABASE_PATH ?? "data/botvendassl.sqlite");
+  ensureSalesCloneDatabase(
+    resolve(dirname(primaryDatabasePath), "sales-bots", "danimiller-bot.sqlite"),
+  );
+}
+
 async function syncSalesWebhooksOnBoot() {
   const publicUrl = String(process.env.PUBLIC_BASE_URL ?? "").replace(/\/$/, "");
   if (!publicUrl.startsWith("https://")) return;
@@ -185,6 +266,7 @@ async function syncSalesWebhooksOnBoot() {
 
 const port = Number(process.env.PORT ?? 80);
 const host = process.env.HOST ?? "0.0.0.0";
+ensureProductionSalesCloneDatabases();
 server.listen(port, host, () => {
   console.log(`Production server listening on http://${host}:${port}`);
   void syncSalesWebhooksOnBoot();

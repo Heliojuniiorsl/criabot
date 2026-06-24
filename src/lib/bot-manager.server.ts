@@ -155,6 +155,13 @@ export async function listManagedBots() {
         );
         const online = Boolean(expectedWebhookUrl && webhook?.url === expectedWebhookUrl);
         const lastError = webhook?.last_error_message as string | undefined;
+        const pendingUpdates = Number(webhook?.pending_update_count ?? 0);
+        const lastErrorDate = Number(webhook?.last_error_date ?? 0) * 1000;
+        const lastErrorIsFresh =
+          Boolean(lastError) && (!lastErrorDate || Date.now() - lastErrorDate < 5 * 60_000);
+        const deliveryLooksStuck = Boolean(
+          lastError && (!online || (pendingUpdates > 0 && lastErrorIsFresh)),
+        );
         return {
           ...base,
           display_name: info.first_name || info.username || config.fallbackName,
@@ -163,19 +170,22 @@ export async function listManagedBots() {
           username: info.username ?? null,
           photo_data_url: photo,
           webhook_url: webhook?.url ?? null,
-          pending_updates: Number(webhook?.pending_update_count ?? 0),
-          status: lastError
+          pending_updates: pendingUpdates,
+          status: deliveryLooksStuck
             ? ("error" as const)
             : online
               ? ("online" as const)
               : ("stopped" as const),
           status_message:
-            lastError ??
-            (baseUrl
-              ? online
-                ? "Webhook conectado"
-                : "Webhook desconectado"
-              : "PUBLIC_BASE_URL precisa ser uma URL HTTPS"),
+            deliveryLooksStuck && lastError
+              ? lastError
+              : baseUrl
+                ? online
+                  ? lastError
+                    ? `Webhook conectado. Ultimo erro antigo do Telegram: ${lastError}`
+                    : "Webhook conectado"
+                  : "Webhook desconectado"
+                : "PUBLIC_BASE_URL precisa ser uma URL HTTPS",
         };
       } catch (error) {
         return {
