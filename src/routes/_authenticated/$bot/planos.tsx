@@ -51,10 +51,13 @@ type Plan = {
   id: string;
   name: string;
   description: string | null;
+  button_label: string | null;
+  detail_message: string | null;
   description_mode: "custom" | "telegram_message";
   description_source_chat_id: number | string | null;
   description_source_message_id: number | null;
   access_chat_id: number | string | null;
+  access_type: "days" | "lifetime";
   price: number;
   duration_days: number;
   promo_price: number | null;
@@ -85,6 +88,7 @@ function SalesPlans() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Plan | null>(null);
   const [descriptionMode, setDescriptionMode] = useState<"custom" | "telegram_message">("custom");
+  const [accessType, setAccessType] = useState<"days" | "lifetime">("days");
 
   const save = useMutation({
     mutationFn: (p: any) => saveFn({ data: p }),
@@ -108,11 +112,13 @@ function SalesPlans() {
   function openNew() {
     setEditing(null);
     setDescriptionMode("custom");
+    setAccessType("days");
     setOpen(true);
   }
   function openEdit(p: Plan) {
     setEditing(p);
     setDescriptionMode(p.description_mode ?? "custom");
+    setAccessType(p.access_type ?? "days");
     setOpen(true);
   }
 
@@ -122,7 +128,9 @@ function SalesPlans() {
     save.mutate({
       id: editing?.id,
       name: String(f.get("name")),
+      button_label: String(f.get("button_label") || ""),
       description: String(f.get("description") || ""),
+      detail_message: String(f.get("detail_message") || ""),
       description_mode: descriptionMode,
       description_source_chat_id:
         descriptionMode === "telegram_message"
@@ -133,8 +141,9 @@ function SalesPlans() {
           ? Number(f.get("description_source_message_id"))
           : null,
       access_chat_id: String(f.get("access_chat_id") || "").trim(),
+      access_type: accessType,
       price: Number(f.get("price")),
-      duration_days: Number(f.get("duration_days")),
+      duration_days: accessType === "lifetime" ? 1 : Number(f.get("duration_days")),
       promo_price: f.get("promo_price") ? Number(f.get("promo_price")) : null,
       promo_starts_at: f.get("promo_starts_at")
         ? new Date(String(f.get("promo_starts_at"))).toISOString()
@@ -142,7 +151,7 @@ function SalesPlans() {
       promo_ends_at: f.get("promo_ends_at")
         ? new Date(String(f.get("promo_ends_at"))).toISOString()
         : null,
-      renewal_enabled: f.get("renewal_enabled") === "on",
+      renewal_enabled: accessType === "days" && f.get("renewal_enabled") === "on",
       is_active: f.get("is_active") === "on",
     });
   }
@@ -169,6 +178,20 @@ function SalesPlans() {
                 <Label htmlFor="name">Nome</Label>
                 <Input id="name" name="name" required defaultValue={editing?.name} />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="button_label">Texto do botão na lista</Label>
+                <Input
+                  id="button_label"
+                  name="button_label"
+                  maxLength={80}
+                  defaultValue={editing?.button_label ?? ""}
+                  placeholder="Ex: 🔥 VIP completo — {{preco}}"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Se ficar vazio, o bot usa nome e preço. Variáveis: {"{{nome}}"}, {"{{preco}}"} e{" "}
+                  {"{{validade}}"}.
+                </p>
+              </div>
               <Card className="space-y-4 border-dashed p-4">
                 <div className="space-y-2">
                   <Label htmlFor="description_mode">Descrição exibida no Telegram</Label>
@@ -185,15 +208,31 @@ function SalesPlans() {
                   </select>
                 </div>
                 {descriptionMode === "custom" ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="description">Descrição</Label>
-                    <Textarea
-                      id="description"
-                      name="description"
-                      rows={5}
-                      defaultValue={editing?.description ?? ""}
-                    />
-                  </div>
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="description">Descrição</Label>
+                      <Textarea
+                        id="description"
+                        name="description"
+                        rows={5}
+                        defaultValue={editing?.description ?? ""}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="detail_message">Mensagem completa ao abrir o plano</Label>
+                      <Textarea
+                        id="detail_message"
+                        name="detail_message"
+                        rows={7}
+                        defaultValue={editing?.detail_message ?? ""}
+                        placeholder={"💎 {{nome}}\n{{descricao}}\n\n⏳ {{validade}}\n💰 {{preco}}"}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Se ficar vazio, o bot monta automaticamente. Variáveis: {"{{nome}}"},{" "}
+                        {"{{descricao}}"}, {"{{preco}}"}, {"{{validade}}"} e {"{{preco_original}}"}.
+                      </p>
+                    </div>
+                  </>
                 ) : (
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
@@ -238,7 +277,7 @@ function SalesPlans() {
                   que expira em 24 horas.
                 </p>
               </Card>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-2">
                   <Label htmlFor="price">Preço (R$)</Label>
                   <Input
@@ -252,16 +291,34 @@ function SalesPlans() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="duration_days">Duração (dias)</Label>
-                  <Input
-                    id="duration_days"
-                    name="duration_days"
-                    type="number"
-                    min="1"
-                    required
-                    defaultValue={editing?.duration_days ?? 30}
-                  />
+                  <Label htmlFor="access_type">Validade</Label>
+                  <select
+                    id="access_type"
+                    className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                    value={accessType}
+                    onChange={(event) => setAccessType(event.target.value as "days" | "lifetime")}
+                  >
+                    <option value="days">Por dias</option>
+                    <option value="lifetime">Vitalicio</option>
+                  </select>
                 </div>
+                {accessType === "days" ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="duration_days">Duração (dias)</Label>
+                    <Input
+                      id="duration_days"
+                      name="duration_days"
+                      type="number"
+                      min="1"
+                      required
+                      defaultValue={editing?.duration_days ?? 30}
+                    />
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3 text-sm text-muted-foreground">
+                    Este plano nunca vence e nao envia avisos de renovacao.
+                  </div>
+                )}
               </div>
               <Card className="space-y-3 border-dashed p-4">
                 <div>
@@ -310,14 +367,16 @@ function SalesPlans() {
                 />
                 <Label htmlFor="is_active">Ativo</Label>
               </div>
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="renewal_enabled"
-                  name="renewal_enabled"
-                  defaultChecked={editing ? editing.renewal_enabled : true}
-                />
-                <Label htmlFor="renewal_enabled">Permitir renovação e avisos</Label>
-              </div>
+              {accessType === "days" && (
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="renewal_enabled"
+                    name="renewal_enabled"
+                    defaultChecked={editing ? editing.renewal_enabled : true}
+                  />
+                  <Label htmlFor="renewal_enabled">Permitir renovação e avisos</Label>
+                </div>
+              )}
               <DialogFooter>
                 <Button type="submit" disabled={save.isPending}>
                   Salvar
@@ -363,7 +422,9 @@ function SalesPlans() {
                     brl(p.price)
                   )}
                 </TableCell>
-                <TableCell>{p.duration_days} dias</TableCell>
+                <TableCell>
+                  {p.access_type === "lifetime" ? "Vitalicio" : `${p.duration_days} dias`}
+                </TableCell>
                 <TableCell>
                   <Badge variant={p.is_active ? "default" : "secondary"}>
                     {p.is_active ? "Ativo" : "Inativo"}

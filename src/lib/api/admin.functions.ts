@@ -1268,6 +1268,8 @@ const planSchema = z
     id: uuid.optional(),
     name: z.string().min(1).max(120),
     description: z.string().max(2000).optional().nullable(),
+    button_label: z.string().trim().max(80).optional().nullable(),
+    detail_message: z.string().max(4000).optional().nullable(),
     description_mode: z.enum(["custom", "telegram_message"]).default("custom"),
     description_source_chat_id: z
       .union([z.number().int(), z.string().trim().min(1).max(80)])
@@ -1275,6 +1277,7 @@ const planSchema = z
       .nullable(),
     description_source_message_id: z.number().int().positive().optional().nullable(),
     access_chat_id: z.coerce.number().int().negative("Informe o ID negativo do grupo VIP"),
+    access_type: z.enum(["days", "lifetime"]).default("days"),
     price: z.number().min(0).max(1000000),
     duration_days: z.number().int().min(1).max(3650),
     promo_price: z.number().min(0).max(1000000).optional().nullable(),
@@ -1315,6 +1318,10 @@ export const savePlan = createServerFn({ method: "POST" })
     const { id, ...rawFields } = data;
     const fields = {
       ...rawFields,
+      button_label: rawFields.button_label?.trim() || null,
+      detail_message: rawFields.detail_message?.trim() || null,
+      duration_days: rawFields.access_type === "lifetime" ? 1 : rawFields.duration_days,
+      renewal_enabled: rawFields.access_type === "lifetime" ? false : rawFields.renewal_enabled,
       description_source_chat_id:
         rawFields.description_mode === "telegram_message"
           ? rawFields.description_source_chat_id
@@ -1610,6 +1617,7 @@ export const manageCustomerAccess = createServerFn({ method: "POST" })
         | Record<string, any>
         | undefined;
       if (!plan) throw new Error("Plano nao encontrado");
+      const isLifetime = plan.access_type === "lifetime";
       const days = data.days ?? Number(plan.duration_days);
       sqlite
         .prepare(
@@ -1622,12 +1630,16 @@ export const manageCustomerAccess = createServerFn({ method: "POST" })
           data.user_id,
           data.plan_id,
           now.toISOString(),
-          new Date(now.getTime() + days * 86_400_000).toISOString(),
-          data.auto_renew ? 1 : 0,
+          isLifetime
+            ? "9999-12-31T23:59:59.000Z"
+            : new Date(now.getTime() + days * 86_400_000).toISOString(),
+          !isLifetime && data.auto_renew ? 1 : 0,
           now.toISOString(),
           now.toISOString(),
         );
-      description = `Acesso liberado: ${plan.name} por ${days} dias`;
+      description = isLifetime
+        ? `Acesso liberado: ${plan.name} vitalicio`
+        : `Acesso liberado: ${plan.name} por ${days} dias`;
     } else {
       if (!data.subscription_id) throw new Error("Acesso nao informado");
       const subscription = sqlite

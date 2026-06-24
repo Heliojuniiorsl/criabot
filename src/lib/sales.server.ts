@@ -485,6 +485,7 @@ export async function runSubscriptionAutomation() {
        JOIN plans p ON p.id = s.plan_id
        JOIN users u ON u.id = s.user_id
        WHERE s.status = 'active' AND s.end_date > ? AND s.end_date <= ?
+       AND IFNULL(p.access_type, 'days') != 'lifetime'
        AND s.renewal_notice_sent_at IS NULL`,
     )
     .all(nowIso, noticeLimit) as Record<string, any>[];

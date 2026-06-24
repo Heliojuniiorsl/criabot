@@ -84,11 +84,15 @@ sqlite.exec(`
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
+    button_label TEXT,
+    detail_message TEXT,
     description_mode TEXT NOT NULL DEFAULT 'custom'
       CHECK (description_mode IN ('custom', 'telegram_message')),
     description_source_chat_id INTEGER,
     description_source_message_id INTEGER,
     access_chat_id INTEGER,
+    access_type TEXT NOT NULL DEFAULT 'days'
+      CHECK (access_type IN ('days', 'lifetime')),
     price REAL NOT NULL DEFAULT 0,
     duration_days INTEGER NOT NULL DEFAULT 30,
     is_active INTEGER NOT NULL DEFAULT 1,
@@ -351,11 +355,14 @@ addColumnIfMissing("users", "last_interaction_at", "TEXT");
 addColumnIfMissing("plans", "promo_price", "REAL");
 addColumnIfMissing("plans", "promo_starts_at", "TEXT");
 addColumnIfMissing("plans", "promo_ends_at", "TEXT");
+addColumnIfMissing("plans", "button_label", "TEXT");
+addColumnIfMissing("plans", "detail_message", "TEXT");
 addColumnIfMissing("plans", "renewal_enabled", "INTEGER NOT NULL DEFAULT 1");
 addColumnIfMissing("plans", "description_mode", "TEXT NOT NULL DEFAULT 'custom'");
 addColumnIfMissing("plans", "description_source_chat_id", "INTEGER");
 addColumnIfMissing("plans", "description_source_message_id", "INTEGER");
 addColumnIfMissing("plans", "access_chat_id", "INTEGER");
+addColumnIfMissing("plans", "access_type", "TEXT NOT NULL DEFAULT 'days'");
 addColumnIfMissing("contents", "category", "TEXT NOT NULL DEFAULT 'Geral'");
 addColumnIfMissing("contents", "access_chat_id", "INTEGER");
 addColumnIfMissing("orders", "offer_id", "TEXT");
@@ -831,8 +838,12 @@ function createStorageBucket() {
   };
 }
 
+const lifetimeAccessEndDate = "9999-12-31T23:59:59.000Z";
+
 function activatePlanSubscription(userId: string, planId: string, now: string, autoRenew = false) {
-  const plan = sqlite.prepare("SELECT duration_days FROM plans WHERE id = ?").get(planId) as Row;
+  const plan = sqlite
+    .prepare("SELECT duration_days, access_type FROM plans WHERE id = ?")
+    .get(planId) as Row;
   if (!plan) throw new Error("plan_not_found");
   const latest = sqlite
     .prepare(
@@ -840,8 +851,13 @@ function activatePlanSubscription(userId: string, planId: string, now: string, a
        WHERE user_id = ? AND plan_id = ? AND status = 'active'`,
     )
     .get(userId, planId) as Row;
-  const startMs = Math.max(Date.now(), latest?.end_date ? Date.parse(latest.end_date) : 0);
-  const end = new Date(startMs + Number(plan.duration_days) * 86_400_000);
+  const isLifetime = plan.access_type === "lifetime";
+  const startMs = isLifetime
+    ? Date.parse(now)
+    : Math.max(Date.now(), latest?.end_date ? Date.parse(latest.end_date) : 0);
+  const endDate = isLifetime
+    ? lifetimeAccessEndDate
+    : new Date(startMs + Number(plan.duration_days) * 86_400_000).toISOString();
   sqlite
     .prepare(
       `INSERT INTO subscriptions
@@ -853,8 +869,8 @@ function activatePlanSubscription(userId: string, planId: string, now: string, a
       userId,
       planId,
       new Date(startMs).toISOString(),
-      end.toISOString(),
-      autoRenew ? 1 : 0,
+      endDate,
+      !isLifetime && autoRenew ? 1 : 0,
     );
 }
 

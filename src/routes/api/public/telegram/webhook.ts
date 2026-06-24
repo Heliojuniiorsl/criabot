@@ -59,6 +59,48 @@ function escapeHtml(value: string) {
 const fmtPrice = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value));
 const fmtDate = (value: string) => new Date(value).toLocaleDateString("pt-BR");
+
+function isLifetimePlan(plan: Record<string, any>) {
+  return plan.access_type === "lifetime";
+}
+
+function planDurationLabel(plan: Record<string, any>) {
+  return isLifetimePlan(plan) ? "Vitalicio" : `${plan.duration_days} dias`;
+}
+
+function accessDateLabel(value: string) {
+  return String(value).startsWith("9999-") ? "vitalicio" : `ate ${fmtDate(value)}`;
+}
+
+function applyPlanTemplate(template: string, plan: Record<string, any>, price: number) {
+  const values: Record<string, string> = {
+    nome: String(plan.name ?? ""),
+    descricao: String(plan.description ?? ""),
+    preco: fmtPrice(price),
+    preco_original: fmtPrice(plan.price),
+    validade: planDurationLabel(plan),
+  };
+  return template.replace(
+    /\{\{\s*(nome|descricao|preco|preco_original|validade)\s*\}\}/g,
+    (_match, key: string) => values[key] ?? "",
+  );
+}
+
+function planListButtonLabel(plan: Record<string, any>) {
+  const price = effectivePlanPrice(plan);
+  const custom = String(plan.button_label ?? "").trim();
+  if (custom) return applyPlanTemplate(custom, plan, price);
+  return `💎 ${plan.name} — ${fmtPrice(price)}`;
+}
+
+function planDetailText(plan: Record<string, any>, price: number) {
+  const custom = String(plan.detail_message ?? "").trim();
+  if (custom) return escapeHtml(applyPlanTemplate(custom, plan, price));
+  const promo = price !== Number(plan.price) ? `\n<s>${fmtPrice(plan.price)}</s> por ` : "\n";
+  return `💎 <b>${escapeHtml(plan.name)}</b>\n${plan.description ?? ""}\n\n⏳ ${planDurationLabel(
+    plan,
+  )}${promo}<b>${fmtPrice(price)}</b>`;
+}
 const backMenu: InlineKeyboard = [[{ text: "⬅️ Menu", callback_data: "menu" }]];
 
 function categoryName(value: unknown) {
@@ -239,7 +281,7 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
           for (const plan of plans) {
             keyboard.push([
               {
-                text: `💎 ${plan.name} — ${fmtPrice(effectivePlanPrice(plan))}`,
+                text: planListButtonLabel(plan),
                 callback_data: `plan_${plan.id}`,
               },
             ]);
@@ -806,13 +848,7 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
               console.error("[plan-ready-message]", error);
             }
           }
-          const promo =
-            price !== Number(plan.price) ? `\n<s>${fmtPrice(plan.price)}</s> por ` : "\n";
-          await render(
-            target,
-            `💎 <b>${escapeHtml(plan.name)}</b>\n${plan.description ?? ""}\n\n⏳ ${plan.duration_days} dias${promo}<b>${fmtPrice(price)}</b>`,
-            keyboard,
-          );
+          await render(target, planDetailText(plan, price), keyboard);
         }
 
         async function showOffers(target: Target) {
@@ -950,7 +986,7 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
             const nowIso = new Date().toISOString();
             const activePlans = sqlite
               .prepare(
-                `SELECT s.plan_id, s.end_date, s.auto_renew, p.name
+                `SELECT s.plan_id, s.end_date, s.auto_renew, p.name, p.access_type
                  FROM subscriptions s
                  LEFT JOIN plans p ON p.id = s.plan_id
                  WHERE s.user_id = ? AND s.status = 'active' AND s.end_date > ?
@@ -981,8 +1017,10 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
                 "\n<b>Planos ativos</b>",
                 ...activePlans.map(
                   (plan) =>
-                    `- ${escapeHtml(plan.name ?? "Plano")} ate ${fmtDate(plan.end_date)}${
-                      plan.auto_renew ? " (renovacao automatica)" : ""
+                    `- ${escapeHtml(plan.name ?? "Plano")} ${accessDateLabel(plan.end_date)}${
+                      !String(plan.end_date).startsWith("9999-") && plan.auto_renew
+                        ? " (renovacao automatica)"
+                        : ""
                     }`,
                 ),
               );
@@ -1002,12 +1040,14 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
                   callback_data: `access_plan:${plan.plan_id}`,
                 },
               ]);
-              keyboard.push([
-                {
-                  text: `Renovar ${plan.name ?? "plano"}`,
-                  callback_data: `renew_plan_${plan.plan_id}`,
-                },
-              ]);
+              if (!String(plan.end_date).startsWith("9999-")) {
+                keyboard.push([
+                  {
+                    text: `Renovar ${plan.name ?? "plano"}`,
+                    callback_data: `renew_plan_${plan.plan_id}`,
+                  },
+                ]);
+              }
             }
             keyboard.push([{ text: "Ver ofertas", callback_data: "offers" }]);
             keyboard.push([{ text: "Voltar ao menu", callback_data: "menu" }]);

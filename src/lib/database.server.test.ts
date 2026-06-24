@@ -112,6 +112,52 @@ describe("SQLite local", () => {
     expect(subscriptions.data[0].status).toBe("active");
   });
 
+  it("confirma pagamento de plano vitalicio sem vencimento real", async () => {
+    const user = await database.localDb.from("users").select("*").eq("telegram_id", 123).single();
+    const plan = await database.localDb
+      .from("plans")
+      .insert({
+        name: "Vitalicio",
+        price: 55,
+        access_type: "lifetime",
+        duration_days: 30,
+        renewal_enabled: true,
+        is_active: true,
+      })
+      .select("*")
+      .single();
+    const order = await database.localDb
+      .from("orders")
+      .insert({
+        user_id: user.data.id,
+        plan_id: plan.data.id,
+        amount: 55,
+        status: "pending",
+        auto_renew: true,
+      })
+      .select("*")
+      .single();
+
+    const confirmation = await database.localDb.rpc("confirm_mercado_pago_payment", {
+      p_order_id: order.data.id,
+      p_provider_payment_id: "mp-lifetime-1",
+      p_provider_status: "accredited",
+      p_paid_at: new Date().toISOString(),
+      p_amount: 55,
+    });
+    const subscription = await database.localDb
+      .from("subscriptions")
+      .select("*")
+      .eq("user_id", user.data.id)
+      .eq("plan_id", plan.data.id)
+      .single();
+
+    expect(confirmation).toEqual({ data: true, error: null });
+    expect(subscription.data.status).toBe("active");
+    expect(subscription.data.end_date).toMatch(/^9999-/);
+    expect(Number(subscription.data.auto_renew)).toBe(0);
+  });
+
   it("confirma um combo e libera todos os planos incluidos", async () => {
     const user = await database.localDb.from("users").select("*").eq("telegram_id", 123).single();
     const plan = await database.localDb
