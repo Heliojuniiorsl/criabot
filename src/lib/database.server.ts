@@ -85,7 +85,9 @@ sqlite.exec(`
     name TEXT NOT NULL,
     description TEXT,
     button_label TEXT,
+    button_color TEXT NOT NULL DEFAULT 'default',
     detail_message TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
     description_mode TEXT NOT NULL DEFAULT 'custom'
       CHECK (description_mode IN ('custom', 'telegram_message')),
     description_source_chat_id INTEGER,
@@ -361,7 +363,9 @@ function ensureSalesDatabaseMigrations(database: Database.Database = sqlite) {
   addColumnIfMissing("plans", "promo_starts_at", "TEXT", database);
   addColumnIfMissing("plans", "promo_ends_at", "TEXT", database);
   addColumnIfMissing("plans", "button_label", "TEXT", database);
+  addColumnIfMissing("plans", "button_color", "TEXT NOT NULL DEFAULT 'default'", database);
   addColumnIfMissing("plans", "detail_message", "TEXT", database);
+  addColumnIfMissing("plans", "sort_order", "INTEGER NOT NULL DEFAULT 0", database);
   addColumnIfMissing("plans", "renewal_enabled", "INTEGER NOT NULL DEFAULT 1", database);
   addColumnIfMissing("plans", "description_mode", "TEXT NOT NULL DEFAULT 'custom'", database);
   addColumnIfMissing("plans", "description_source_chat_id", "INTEGER", database);

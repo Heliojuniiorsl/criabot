@@ -8,6 +8,7 @@ import {
   getImageBotSettings,
   listImageBotPremiumPlans,
   listPlans,
+  reorderPlan,
   saveImageBotFreePlanSettings,
   saveImageBotPremiumPlanAdmin,
   saveImageBotPremiumReminderSettings,
@@ -36,7 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Trash2, Plus } from "lucide-react";
+import { ArrowDown, ArrowUp, Pencil, Trash2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useManagedBotPanel } from "@/lib/managed-bot-context";
 
@@ -52,6 +53,7 @@ type Plan = {
   name: string;
   description: string | null;
   button_label: string | null;
+  button_color: "default" | "red" | "orange" | "yellow" | "green" | "blue" | "purple" | "pink";
   detail_message: string | null;
   description_mode: "custom" | "telegram_message";
   description_source_chat_id: number | string | null;
@@ -65,7 +67,23 @@ type Plan = {
   promo_ends_at: string | null;
   renewal_enabled: boolean;
   is_active: boolean;
+  sort_order: number;
 };
+
+const planButtonColors = [
+  { value: "default", label: "Padrao", prefix: "💎" },
+  { value: "red", label: "Vermelho", prefix: "🔴" },
+  { value: "orange", label: "Laranja", prefix: "🟠" },
+  { value: "yellow", label: "Amarelo", prefix: "🟡" },
+  { value: "green", label: "Verde", prefix: "🟢" },
+  { value: "blue", label: "Azul", prefix: "🔵" },
+  { value: "purple", label: "Roxo", prefix: "🟣" },
+  { value: "pink", label: "Rosa", prefix: "🩷" },
+] as const;
+
+function planColorPrefix(value: Plan["button_color"]) {
+  return planButtonColors.find((color) => color.value === value)?.prefix ?? "💎";
+}
 
 const inputDate = (value?: string | null) =>
   value ? new Date(value).toISOString().slice(0, 16) : "";
@@ -80,6 +98,7 @@ function SalesPlans() {
   const listFn = useServerFn(listPlans);
   const saveFn = useServerFn(savePlan);
   const delFn = useServerFn(deletePlan);
+  const reorderFn = useServerFn(reorderPlan);
 
   const { data: plans } = useSuspenseQuery(
     queryOptions({ queryKey: ["plans"], queryFn: () => listFn() as Promise<Plan[]> }),
@@ -109,6 +128,15 @@ function SalesPlans() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const move = useMutation({
+    mutationFn: (data: { id: string; direction: "up" | "down" }) => reorderFn({ data }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["plans"] });
+      toast.success("Ordem atualizada");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   function openNew() {
     setEditing(null);
     setDescriptionMode("custom");
@@ -125,12 +153,14 @@ function SalesPlans() {
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
+    const planMessage = String(f.get("detail_message") || "");
     save.mutate({
       id: editing?.id,
       name: String(f.get("name")),
       button_label: String(f.get("button_label") || ""),
-      description: String(f.get("description") || ""),
-      detail_message: String(f.get("detail_message") || ""),
+      button_color: String(f.get("button_color") || "default"),
+      description: planMessage,
+      detail_message: planMessage,
       description_mode: descriptionMode,
       description_source_chat_id:
         descriptionMode === "telegram_message"
@@ -192,6 +222,25 @@ function SalesPlans() {
                   {"{{validade}}"}.
                 </p>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="button_color">Cor/destaque do botão no Telegram</Label>
+                <select
+                  id="button_color"
+                  name="button_color"
+                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                  defaultValue={editing?.button_color ?? "default"}
+                >
+                  {planButtonColors.map((color) => (
+                    <option key={color.value} value={color.value}>
+                      {color.prefix} {color.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  O Telegram nao permite trocar a cor de fundo do botão; o destaque aparece como
+                  marcador colorido no texto.
+                </p>
+              </div>
               <Card className="space-y-4 border-dashed p-4">
                 <div className="space-y-2">
                   <Label htmlFor="description_mode">Descrição exibida no Telegram</Label>
@@ -208,31 +257,20 @@ function SalesPlans() {
                   </select>
                 </div>
                 {descriptionMode === "custom" ? (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="description">Descrição</Label>
-                      <Textarea
-                        id="description"
-                        name="description"
-                        rows={5}
-                        defaultValue={editing?.description ?? ""}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="detail_message">Mensagem completa ao abrir o plano</Label>
-                      <Textarea
-                        id="detail_message"
-                        name="detail_message"
-                        rows={7}
-                        defaultValue={editing?.detail_message ?? ""}
-                        placeholder={"💎 {{nome}}\n{{descricao}}\n\n⏳ {{validade}}\n💰 {{preco}}"}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Se ficar vazio, o bot monta automaticamente. Variáveis: {"{{nome}}"},{" "}
-                        {"{{descricao}}"}, {"{{preco}}"}, {"{{validade}}"} e {"{{preco_original}}"}.
-                      </p>
-                    </div>
-                  </>
+                  <div className="space-y-2">
+                    <Label htmlFor="detail_message">Mensagem do plano no Telegram</Label>
+                    <Textarea
+                      id="detail_message"
+                      name="detail_message"
+                      rows={9}
+                      defaultValue={editing?.detail_message || editing?.description || ""}
+                      placeholder={"💎 {{nome}}\n\n⏳ {{validade}}\n💰 {{preco}}"}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Edite tudo que aparece quando o cliente abre o plano. Variáveis: {"{{nome}}"},{" "}
+                      {"{{preco}}"}, {"{{validade}}"} e {"{{preco_original}}"}.
+                    </p>
+                  </div>
                 ) : (
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
@@ -391,6 +429,7 @@ function SalesPlans() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Ordem</TableHead>
               <TableHead>Nome</TableHead>
               <TableHead>Preço</TableHead>
               <TableHead>Duração</TableHead>
@@ -401,14 +440,39 @@ function SalesPlans() {
           <TableBody>
             {plans.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
+                <TableCell colSpan={6} className="text-center text-muted-foreground">
                   Nenhum plano cadastrado.
                 </TableCell>
               </TableRow>
             )}
-            {plans.map((p) => (
+            {plans.map((p, index) => (
               <TableRow key={p.id}>
-                <TableCell className="font-medium">{p.name}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      disabled={index === 0 || move.isPending}
+                      onClick={() => move.mutate({ id: p.id, direction: "up" })}
+                      title="Subir"
+                    >
+                      <ArrowUp className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      disabled={index === plans.length - 1 || move.isPending}
+                      onClick={() => move.mutate({ id: p.id, direction: "down" })}
+                      title="Descer"
+                    >
+                      <ArrowDown className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+                <TableCell className="font-medium">
+                  <span className="mr-2">{planColorPrefix(p.button_color ?? "default")}</span>
+                  {p.name}
+                </TableCell>
                 <TableCell>
                   {p.promo_price !== null ? (
                     <>

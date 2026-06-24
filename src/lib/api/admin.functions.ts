@@ -1260,7 +1260,11 @@ export const listPlans = createServerFn({ method: "GET" }).handler(async () => {
     .select("*")
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
-  return data;
+  return [...(data ?? [])].sort(
+    (left: any, right: any) =>
+      Number(left.sort_order ?? 0) - Number(right.sort_order ?? 0) ||
+      Date.parse(right.created_at ?? "") - Date.parse(left.created_at ?? ""),
+  );
 });
 
 const planSchema = z
@@ -1269,6 +1273,9 @@ const planSchema = z
     name: z.string().min(1).max(120),
     description: z.string().max(2000).optional().nullable(),
     button_label: z.string().trim().max(80).optional().nullable(),
+    button_color: z
+      .enum(["default", "red", "orange", "yellow", "green", "blue", "purple", "pink"])
+      .default("default"),
     detail_message: z.string().max(4000).optional().nullable(),
     description_mode: z.enum(["custom", "telegram_message"]).default("custom"),
     description_source_chat_id: z
@@ -1283,6 +1290,7 @@ const planSchema = z
     promo_price: z.number().min(0).max(1000000).optional().nullable(),
     promo_starts_at: z.string().max(40).optional().nullable(),
     promo_ends_at: z.string().max(40).optional().nullable(),
+    sort_order: z.number().int().min(0).max(1_000_000).optional(),
     renewal_enabled: z.boolean().default(true),
     is_active: z.boolean(),
   })
@@ -1319,7 +1327,19 @@ export const savePlan = createServerFn({ method: "POST" })
     const fields = {
       ...rawFields,
       button_label: rawFields.button_label?.trim() || null,
+      button_color: rawFields.button_color ?? "default",
       detail_message: rawFields.detail_message?.trim() || null,
+      sort_order:
+        rawFields.sort_order ??
+        (id
+          ? undefined
+          : Number(
+              (
+                sqlite
+                  .prepare("SELECT COALESCE(MAX(sort_order), 0) + 10 AS next FROM plans")
+                  .get() as { next: number }
+              ).next,
+            )),
       duration_days: rawFields.access_type === "lifetime" ? 1 : rawFields.duration_days,
       renewal_enabled: rawFields.access_type === "lifetime" ? false : rawFields.renewal_enabled,
       description_source_chat_id:
@@ -1331,6 +1351,7 @@ export const savePlan = createServerFn({ method: "POST" })
           ? rawFields.description_source_message_id
           : null,
     };
+    if (fields.sort_order === undefined) delete (fields as Record<string, unknown>).sort_order;
     if (id) {
       const { error } = await sb.from("plans").update(fields).eq("id", id);
       if (error) throw new Error(error.message);
@@ -1338,6 +1359,36 @@ export const savePlan = createServerFn({ method: "POST" })
       const { error } = await sb.from("plans").insert(fields);
       if (error) throw new Error(error.message);
     }
+    return { ok: true };
+  });
+
+export const reorderPlan = createServerFn({ method: "POST" })
+  .validator(z.object({ id: uuid, direction: z.enum(["up", "down"]) }))
+  .handler(async ({ data }) => {
+    await admin();
+    const rows = sqlite
+      .prepare(
+        `SELECT id
+         FROM plans
+         ORDER BY sort_order ASC, datetime(created_at) DESC, name COLLATE NOCASE ASC`,
+      )
+      .all() as Array<{ id: string }>;
+    const index = rows.findIndex((plan) => plan.id === data.id);
+    if (index === -1) throw new Error("Plano nao encontrado");
+    const targetIndex = data.direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= rows.length) return { ok: true };
+
+    const nextOrder = [...rows];
+    [nextOrder[index], nextOrder[targetIndex]] = [nextOrder[targetIndex], nextOrder[index]];
+    const now = new Date().toISOString();
+    const updateOrder = sqlite.transaction(() => {
+      for (const [position, plan] of nextOrder.entries()) {
+        sqlite
+          .prepare("UPDATE plans SET sort_order = ?, updated_at = ? WHERE id = ?")
+          .run((position + 1) * 10, now, plan.id);
+      }
+    });
+    updateOrder();
     return { ok: true };
   });
 

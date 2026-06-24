@@ -86,11 +86,26 @@ function applyPlanTemplate(template: string, plan: Record<string, any>, price: n
   );
 }
 
+function planButtonColorPrefix(plan: Record<string, any>) {
+  const prefixes: Record<string, string> = {
+    default: "💎",
+    red: "🔴",
+    orange: "🟠",
+    yellow: "🟡",
+    green: "🟢",
+    blue: "🔵",
+    purple: "🟣",
+    pink: "🩷",
+  };
+  return prefixes[String(plan.button_color ?? "default")] ?? "💎";
+}
+
 function planListButtonLabel(plan: Record<string, any>) {
   const price = effectivePlanPrice(plan);
   const custom = String(plan.button_label ?? "").trim();
-  if (custom) return applyPlanTemplate(custom, plan, price);
-  return `💎 ${plan.name} — ${fmtPrice(price)}`;
+  const prefix = planButtonColorPrefix(plan);
+  if (custom) return `${prefix} ${applyPlanTemplate(custom, plan, price)}`.trim();
+  return `${prefix} ${plan.name} — ${fmtPrice(price)}`;
 }
 
 function planDetailText(plan: Record<string, any>, price: number) {
@@ -258,11 +273,16 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
         async function getCatalogItems() {
           const now = Date.now();
           const [{ data: plans }, { data: offersData }] = await Promise.all([
-            sb.from("plans").select("*").eq("is_active", true).order("price"),
+            sb.from("plans").select("*").eq("is_active", true).order("sort_order"),
             sb.from("offers").select("*").eq("is_active", true).order("price"),
           ]);
           const offers = (offersData ?? []).filter((offer: any) => isActiveOffer(offer, now));
-          return { plans: plans ?? [], offers };
+          const sortedPlans = [...(plans ?? [])].sort(
+            (left: any, right: any) =>
+              Number(left.sort_order ?? 0) - Number(right.sort_order ?? 0) ||
+              Date.parse(right.created_at ?? "") - Date.parse(left.created_at ?? ""),
+          );
+          return { plans: sortedPlans, offers };
         }
 
         async function buildPlansKeyboard() {
