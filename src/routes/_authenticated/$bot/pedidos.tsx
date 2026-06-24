@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listOrders, syncOrderPayment, cancelOrder } from "@/lib/api/admin.functions";
+import { hideOrder, listOrders, syncOrderPayment } from "@/lib/api/admin.functions";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,7 @@ function Pedidos() {
   const qc = useQueryClient();
   const listFn = useServerFn(listOrders);
   const payFn = useServerFn(syncOrderPayment);
-  const cancelFn = useServerFn(cancelOrder);
+  const hideFn = useServerFn(hideOrder);
 
   const { data: orders } = useSuspenseQuery(
     queryOptions({ queryKey: ["orders"], queryFn: () => listFn() as Promise<any[]> }),
@@ -58,11 +58,11 @@ function Pedidos() {
     },
     onError: (e: any) => toast.error(e.message),
   });
-  const cancel = useMutation({
-    mutationFn: (id: string) => cancelFn({ data: { id } }),
+  const hide = useMutation({
+    mutationFn: (id: string) => hideFn({ data: { id } }),
     onSuccess: () => {
       refresh();
-      toast.success("Pedido cancelado");
+      toast.success("Transacao removida da lista");
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -115,20 +115,32 @@ function Pedidos() {
                   </TableCell>
                   <TableCell className="text-right">
                     {o.status === "pending" && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => pay.mutate(o.id)}
-                          disabled={pay.isPending}
-                        >
-                          <Check className="mr-1 h-4 w-4 text-primary" /> Verificar pagamento
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => cancel.mutate(o.id)}>
-                          <X className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => pay.mutate(o.id)}
+                        disabled={pay.isPending}
+                      >
+                        <Check className="mr-1 h-4 w-4 text-primary" /> Verificar pagamento
+                      </Button>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Remover transacao da lista"
+                      disabled={hide.isPending}
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            "Remover esta transacao da lista? O registro fica preservado no banco, mas nao aparece mais aqui.",
+                          )
+                        ) {
+                          hide.mutate(o.id);
+                        }
+                      }}
+                    >
+                      <X className="h-4 w-4 text-destructive" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               );

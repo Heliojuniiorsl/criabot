@@ -126,6 +126,7 @@ sqlite.exec(`
     fulfilled_at TEXT,
     delivery_claimed_at TEXT,
     delivery_sent_at TEXT,
+    hidden_at TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
@@ -377,6 +378,7 @@ function ensureSalesDatabaseMigrations(database: Database.Database = sqlite) {
   addColumnIfMissing("orders", "offer_id", "TEXT", database);
   addColumnIfMissing("orders", "auto_renew", "INTEGER NOT NULL DEFAULT 0", database);
   addColumnIfMissing("orders", "pix_reminder_sent_at", "TEXT", database);
+  addColumnIfMissing("orders", "hidden_at", "TEXT", database);
   addColumnIfMissing("subscriptions", "auto_renew", "INTEGER NOT NULL DEFAULT 0", database);
   addColumnIfMissing("subscriptions", "renewal_notice_sent_at", "TEXT", database);
   addColumnIfMissing("subscriptions", "expiration_notice_sent_at", "TEXT", database);
@@ -431,6 +433,7 @@ addColumnIfMissing("contents", "access_chat_id", "INTEGER");
 addColumnIfMissing("orders", "offer_id", "TEXT");
 addColumnIfMissing("orders", "auto_renew", "INTEGER NOT NULL DEFAULT 0");
 addColumnIfMissing("orders", "pix_reminder_sent_at", "TEXT");
+addColumnIfMissing("orders", "hidden_at", "TEXT");
 addColumnIfMissing("subscriptions", "auto_renew", "INTEGER NOT NULL DEFAULT 0");
 addColumnIfMissing("subscriptions", "renewal_notice_sent_at", "TEXT");
 addColumnIfMissing("subscriptions", "expiration_notice_sent_at", "TEXT");

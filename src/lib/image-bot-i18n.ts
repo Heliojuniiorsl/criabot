@@ -188,8 +188,7 @@ const translations: Record<ImageBotLanguage, ImageBotTranslation> = {
     backButton: "⬅️ กลับ",
     premiumButton: "ปลดล็อกการเข้าถึงบอททั้งหมด",
     categoryPrompt: "เลือกหมวดหมู่:",
-    mediaPrompt: (category) =>
-      `เลือก <b>${category}</b> แล้ว กด รับวิดีโอ เพื่อรับสื่อแบบสุ่ม:`,
+    mediaPrompt: (category) => `เลือก <b>${category}</b> แล้ว กด รับวิดีโอ เพื่อรับสื่อแบบสุ่ม:`,
     categoryRequired: "กรุณาเลือกหมวดหมู่ก่อน",
     emptyMedia: "ยังไม่มีสื่อในหมวดหมู่นี้",
     favoritesEmpty: "คุณยังไม่มีรายการโปรดในหมวดหมู่นี้",
@@ -232,9 +231,7 @@ export function imageBotLanguageFromSelection(value: string): ImageBotLanguage |
   if (["english", "🇺🇸 english", "🇬🇧 english"].includes(normalized)) return "en";
   if (["español", "espanol", "🇪🇸 español", "🇪🇸 espanol"].includes(normalized)) return "es";
   if (
-    ["العربية", "عربي", "فارسی", "فارسي", "اردو", "🇸🇦 العربية", "🇦🇪 العربية"].includes(
-      normalized,
-    )
+    ["العربية", "عربي", "فارسی", "فارسي", "اردو", "🇸🇦 العربية", "🇦🇪 العربية"].includes(normalized)
   ) {
     return "ar";
   }

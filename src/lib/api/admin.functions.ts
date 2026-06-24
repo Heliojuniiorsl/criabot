@@ -1760,7 +1760,7 @@ export const listOrders = createServerFn({ method: "GET" }).handler(async () => 
     .select("*, users(name, telegram_username, telegram_id), plans(name), contents(title)")
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
-  return data;
+  return (data ?? []).filter((order: any) => !order.hidden_at);
 });
 
 export const syncOrderPayment = createServerFn({ method: "POST" })
@@ -1793,6 +1793,18 @@ export const cancelOrder = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const sb = await admin();
     const { error } = await sb.from("orders").update({ status: "canceled" }).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const hideOrder = createServerFn({ method: "POST" })
+  .validator(z.object({ id: uuid }))
+  .handler(async ({ data }) => {
+    const sb = await admin();
+    const { error } = await sb
+      .from("orders")
+      .update({ hidden_at: new Date().toISOString() })
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
