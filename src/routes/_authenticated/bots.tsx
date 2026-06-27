@@ -1,24 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
-import { Bot, Images, LogOut, Play, Plus, RotateCw, Square } from "lucide-react";
+import { Bot, Images, LogOut, Play, RotateCw, Square } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { cloneSalesBot, getManagedBots, runManagedBotAction } from "@/lib/api/admin.functions";
+import { getManagedBots, runManagedBotAction } from "@/lib/api/admin.functions";
 import { logoutAdminAccount } from "@/lib/api/auth.functions";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/_authenticated/bots")({
   component: Bots,
@@ -64,14 +53,11 @@ const statusClasses: Record<ManagedBot["status"], string> = {
 };
 
 function Bots() {
-  const [cloneDialogOpen, setCloneDialogOpen] = useState(false);
-  const [cloneToken, setCloneToken] = useState("");
   const navigate = useNavigate();
   const qc = useQueryClient();
   const logoutFn = useServerFn(logoutAdminAccount);
   const listFn = useServerFn(getManagedBots);
   const actionFn = useServerFn(runManagedBotAction);
-  const cloneFn = useServerFn(cloneSalesBot);
 
   const botsQuery = useQuery({
     queryKey: ["managed-bots"],
@@ -100,25 +86,6 @@ function Bots() {
     onError: (error: any) => toast.error(error.message),
   });
 
-  const cloneBot = useMutation({
-    mutationFn: () =>
-      cloneFn({ data: { token: cloneToken.trim() } }) as Promise<{
-        display_name: string;
-        webhook_warning: string | null;
-      }>,
-    onSuccess: async (result) => {
-      setCloneToken("");
-      setCloneDialogOpen(false);
-      await qc.invalidateQueries({ queryKey: ["managed-bots"] });
-      if (result.webhook_warning) {
-        toast.warning(`${result.display_name} foi criado. ${result.webhook_warning}`);
-      } else {
-        toast.success(`${result.display_name} foi clonado e iniciado`);
-      }
-    },
-    onError: (error: any) => toast.error(error.message),
-  });
-
   async function signOut() {
     await logoutFn();
     await navigate({ to: "/" });
@@ -137,12 +104,9 @@ function Bots() {
             Escolha qual bot deseja gerenciar
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Nome, foto e usuário são atualizados automaticamente pelo Telegram.
+            Cada bot tem painel e banco proprios. Nome, foto e usuario sao atualizados
+            automaticamente pelo Telegram.
           </p>
-          <Button className="mt-5" onClick={() => setCloneDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Clonar bot Bruna
-          </Button>
         </div>
         <Button variant="ghost" className="self-start sm:self-auto" onClick={signOut}>
           <LogOut className="mr-2 h-4 w-4" /> Sair
@@ -252,54 +216,6 @@ function Bots() {
           );
         })}
       </div>
-
-      <Dialog open={cloneDialogOpen} onOpenChange={setCloneDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Clonar o bot Bruna</DialogTitle>
-            <DialogDescription>
-              Crie outro bot de vendas com o mesmo painel e configuracoes iniciais. Clientes,
-              pedidos e pagamentos ficam em um banco separado.
-            </DialogDescription>
-          </DialogHeader>
-          <form
-            className="space-y-5"
-            onSubmit={(event) => {
-              event.preventDefault();
-              cloneBot.mutate();
-            }}
-          >
-            <div className="space-y-2">
-              <Label htmlFor="clone_telegram_token">Token do novo bot no Telegram</Label>
-              <Input
-                id="clone_telegram_token"
-                type="password"
-                autoComplete="off"
-                value={cloneToken}
-                onChange={(event) => setCloneToken(event.target.value)}
-                placeholder="1234567890:AA..."
-                required
-              />
-              <p className="text-xs text-muted-foreground">
-                O nome, o usuario e a foto serao obtidos automaticamente pelo Telegram.
-              </p>
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setCloneDialogOpen(false)}
-                disabled={cloneBot.isPending}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={cloneBot.isPending || cloneToken.trim().length < 20}>
-                {cloneBot.isPending ? "Criando clone..." : "Criar e iniciar bot"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </main>
   );
 }

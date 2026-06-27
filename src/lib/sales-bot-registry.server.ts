@@ -1,11 +1,10 @@
 import Database from "better-sqlite3";
-import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
-import { clonePrimarySalesDatabase, ensureSalesCloneDatabase } from "@/lib/database.server";
+import { ensureSalesCloneDatabase } from "@/lib/database.server";
 import type { SalesBotRuntime } from "@/lib/sales-bot-runtime.server";
-import { getBotInfoWithToken } from "@/lib/telegram.server";
 
 export type SalesBotClone = {
   id: string;
@@ -203,54 +202,4 @@ export function resolveSalesBotRuntimeByWebhookSecret(receivedSecret: string) {
     }
   }
   return null;
-}
-
-export async function createSalesBotClone(tokenInput: string) {
-  const token = tokenInput.trim();
-  if (!/^\d{6,}:[A-Za-z0-9_-]{20,}$/.test(token)) {
-    throw new Error("Token do Telegram invalido");
-  }
-  if (token === process.env.TELEGRAM_BOT_TOKEN?.trim()) {
-    throw new Error("Este token ja pertence ao bot Bruna original");
-  }
-
-  const info = await getBotInfoWithToken(token);
-  const username = String(info.username ?? "").trim();
-  if (!username) throw new Error("O Telegram nao retornou o usuario deste bot");
-  const envDuplicate = listEnvironmentSalesBotClones().find(
-    (clone) =>
-      clone.token === token || normalizeUsername(clone.username) === normalizeUsername(username),
-  );
-  if (envDuplicate) throw new Error(`O bot @${envDuplicate.username} ja foi adicionado`);
-
-  const duplicate = registry
-    .prepare(
-      "SELECT username FROM sales_bot_clones WHERE token = ? OR telegram_id = ? OR username = ? COLLATE NOCASE",
-    )
-    .get(token, String(info.id), username) as { username: string } | undefined;
-  if (duplicate) throw new Error(`O bot @${duplicate.username} ja foi adicionado`);
-
-  const id = randomUUID();
-  const databasePath = defaultCloneDatabasePath(id);
-  await clonePrimarySalesDatabase(databasePath);
-
-  const now = new Date().toISOString();
-  registry
-    .prepare(
-      `INSERT INTO sales_bot_clones
-       (id, token, telegram_id, username, display_name, database_path, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
-      id,
-      token,
-      String(info.id),
-      username,
-      String(info.first_name || username),
-      databasePath,
-      now,
-      now,
-    );
-
-  return findSalesBotCloneById(id)!;
 }

@@ -9,11 +9,7 @@ import { requireAdminSession } from "@/lib/auth.server";
 import { controlManagedBot, getManagedBotToken, listManagedBots } from "@/lib/bot-manager.server";
 import { getTelegramGroups, localDb, sqlite, upsertTelegramGroup } from "@/lib/database.server";
 import { getEnvSettingsForPanel, saveEnvSettingsFromPanel } from "@/lib/env-settings.server";
-import {
-  createSalesBotClone,
-  findSalesBotCloneByUsername,
-  salesBotCloneRuntime,
-} from "@/lib/sales-bot-registry.server";
+import { findSalesBotCloneByUsername, salesBotCloneRuntime } from "@/lib/sales-bot-registry.server";
 import { enterSalesBotRuntime, getActiveSalesBotToken } from "@/lib/sales-bot-runtime.server";
 import {
   deleteImageBotMediaMany,
@@ -185,28 +181,6 @@ export const runManagedBotAction = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await admin();
     return controlManagedBot(data.key, data.action);
-  });
-
-export const cloneSalesBot = createServerFn({ method: "POST" })
-  .validator(z.object({ token: z.string().min(20).max(200) }))
-  .handler(async ({ data }) => {
-    await admin();
-    const clone = await createSalesBotClone(data.token);
-    let webhookWarning: string | null = null;
-    try {
-      await controlManagedBot(clone.key, "start");
-    } catch (error) {
-      webhookWarning =
-        error instanceof Error
-          ? error.message
-          : "O bot foi criado, mas o webhook precisa ser iniciado manualmente";
-    }
-    return {
-      key: clone.key,
-      username: clone.username,
-      display_name: clone.display_name,
-      webhook_warning: webhookWarning,
-    };
   });
 
 /* ----------------------------- Environment ------------------------------- */
