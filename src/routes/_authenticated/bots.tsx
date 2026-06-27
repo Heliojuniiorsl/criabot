@@ -97,9 +97,7 @@ function Bots() {
     <main className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col justify-start px-4 py-6 sm:px-5 sm:py-12 md:justify-center">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <div className="font-display text-lg font-semibold">
-            Premium<span className="text-primary">Studio</span>
-          </div>
+          <div className="font-display text-lg font-semibold text-primary">CriaBot</div>
           <h1 className="mt-6 font-display text-3xl font-semibold leading-tight sm:mt-8 sm:text-4xl">
             Escolha qual bot deseja gerenciar
           </h1>

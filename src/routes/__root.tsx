@@ -73,17 +73,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Painel Premium — Gestão de Conteúdo +18" },
+      { title: "CriaBot - Plataforma de bots para Telegram" },
       {
         name: "description",
-        content:
-          "Plataforma premium para gestão de planos, assinaturas e vendas de conteúdo adulto via Telegram.",
+        content: "Plataforma para criar, configurar e gerenciar bots independentes no Telegram.",
       },
       { name: "robots", content: "noindex, nofollow" },
-      { property: "og:title", content: "Painel Premium — Gestão de Conteúdo +18" },
+      { property: "og:title", content: "CriaBot - Plataforma de bots para Telegram" },
       {
         property: "og:description",
-        content: "Gestão de planos, assinaturas e vendas via Telegram.",
+        content: "Crie, configure e gerencie bots independentes no Telegram.",
       },
       { property: "og:type", content: "website" },
     ],

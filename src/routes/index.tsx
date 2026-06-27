@@ -85,7 +85,7 @@ function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md p-7">
-        <h1 className="font-display text-2xl font-semibold">PremiumStudio</h1>
+        <h1 className="font-display text-2xl font-semibold">CriaBot</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {createAccount
             ? "Crie a primeira conta administrativa."
