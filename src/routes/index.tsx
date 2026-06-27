@@ -43,7 +43,7 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [createAccount, setCreateAccount] = useState(false);
   const [hasAdmin, setHasAdmin] = useState<boolean | null>(null);
-  const canCreateAccount = hasAdmin === false;
+  const requiresSignupCode = hasAdmin === true;
 
   useEffect(() => {
     void statusFn().then((status) => {
@@ -62,10 +62,6 @@ function LoginPage() {
 
   function openSignup() {
     if (hasAdmin === null) return;
-    if (!canCreateAccount) {
-      toast.info("O cadastro inicial ja foi criado. Use o login administrativo.");
-      return;
-    }
     setCreateAccount(true);
   }
 
@@ -75,21 +71,28 @@ function LoginPage() {
     const email = String(form.get("email") ?? "").trim();
     const password = String(form.get("password") ?? "");
     const passwordConfirmation = String(form.get("password_confirmation") ?? "");
+    const signupCode = String(form.get("signup_code") ?? "").trim();
     if (createAccount) {
-      if (!canCreateAccount) {
-        toast.error("A primeira conta administrativa ja existe.");
-        return;
-      }
       const validationError = validateNewPassword(password, passwordConfirmation);
       if (validationError) {
         toast.error(validationError);
+        return;
+      }
+      if (requiresSignupCode && !signupCode) {
+        toast.error("Informe o codigo de convite para cadastrar uma nova conta.");
         return;
       }
     }
     setLoading(true);
     try {
       if (createAccount) {
-        await createFn({ data: { email, password } });
+        await createFn({
+          data: {
+            email,
+            password,
+            signup_code: signupCode || undefined,
+          },
+        });
       } else {
         await loginFn({ data: { email, password } });
       }
@@ -195,7 +198,9 @@ function LoginPage() {
               </div>
               <p className="mt-3 text-sm leading-6 opacity-90">
                 {createAccount
-                  ? "Cadastre a primeira conta dona do painel CriaBot."
+                  ? requiresSignupCode
+                    ? "Cadastre uma nova conta com o codigo de convite."
+                    : "Cadastre a primeira conta dona do painel CriaBot."
                   : "Use seu e-mail e senha para administrar seus bots."}
               </p>
             </div>
@@ -222,9 +227,10 @@ function LoginPage() {
                 </button>
               </div>
 
-              {!canCreateAccount && createAccount ? (
+              {requiresSignupCode && createAccount ? (
                 <div className="mt-4 rounded-2xl border border-primary/20 bg-accent p-4 text-sm text-accent-foreground">
-                  O cadastro inicial ja existe. Entre com a conta administrativa cadastrada.
+                  O painel ja tem uma conta principal. Para criar outro login, use o codigo de
+                  convite configurado em ADMIN_SIGNUP_CODE.
                 </div>
               ) : null}
 
@@ -260,19 +266,35 @@ function LoginPage() {
                   ) : null}
                 </div>
                 {createAccount ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="password_confirmation">Confirmar senha</Label>
-                    <Input
-                      className="h-12 rounded-2xl bg-white"
-                      id="password_confirmation"
-                      name="password_confirmation"
-                      type="password"
-                      minLength={12}
-                      autoComplete="new-password"
-                      placeholder="Repita a senha"
-                      required
-                    />
-                  </div>
+                  <>
+                    {requiresSignupCode ? (
+                      <div className="space-y-2">
+                        <Label htmlFor="signup_code">Codigo de convite</Label>
+                        <Input
+                          className="h-12 rounded-2xl bg-white"
+                          id="signup_code"
+                          name="signup_code"
+                          type="password"
+                          autoComplete="one-time-code"
+                          placeholder="Digite o codigo de cadastro"
+                          required
+                        />
+                      </div>
+                    ) : null}
+                    <div className="space-y-2">
+                      <Label htmlFor="password_confirmation">Confirmar senha</Label>
+                      <Input
+                        className="h-12 rounded-2xl bg-white"
+                        id="password_confirmation"
+                        name="password_confirmation"
+                        type="password"
+                        minLength={12}
+                        autoComplete="new-password"
+                        placeholder="Repita a senha"
+                        required
+                      />
+                    </div>
+                  </>
                 ) : null}
                 <Button
                   className="h-12 w-full rounded-2xl text-base"

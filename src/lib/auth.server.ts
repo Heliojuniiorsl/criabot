@@ -27,6 +27,12 @@ function verifyPassword(password: string, encoded: string) {
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
+function safeEqualText(left: string, right: string) {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
+}
+
 function cookieOptions() {
   const request = getRequest();
   const forwardedProto = request.headers.get("x-forwarded-proto");
@@ -61,9 +67,23 @@ export function hasAdminAccount() {
   return row.total > 0;
 }
 
-export function createFirstAdmin(email: string, password: string) {
-  if (hasAdminAccount()) throw new Error("A conta administrativa já foi criada");
+export function createAdmin(email: string, password: string, signupCode?: string) {
   const normalizedEmail = email.trim().toLowerCase();
+  const alreadyHasAdmin = hasAdminAccount();
+
+  if (alreadyHasAdmin) {
+    const expectedCode = process.env.ADMIN_SIGNUP_CODE?.trim();
+    if (!expectedCode) throw new Error("Configure ADMIN_SIGNUP_CODE para liberar novos cadastros");
+    if (!signupCode || !safeEqualText(signupCode.trim(), expectedCode)) {
+      throw new Error("Codigo de cadastro invalido");
+    }
+  }
+
+  const existing = sqlite
+    .prepare("SELECT id FROM admin_accounts WHERE email = ? COLLATE NOCASE")
+    .get(normalizedEmail);
+  if (existing) throw new Error("Ja existe uma conta com este e-mail");
+
   const id = randomUUID();
   sqlite
     .prepare("INSERT INTO admin_accounts (id, email, password_hash) VALUES (?, ?, ?)")
@@ -109,6 +129,6 @@ export function getCurrentAdmin() {
 
 export function requireAdminSession() {
   const admin = getCurrentAdmin();
-  if (!admin) throw new Error("Não autenticado");
+  if (!admin) throw new Error("Nao autenticado");
   return admin;
 }
