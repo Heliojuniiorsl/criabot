@@ -7,7 +7,7 @@ let database: typeof import("./database.server");
 let testDirectory: string;
 
 beforeAll(async () => {
-  testDirectory = mkdtempSync(join(tmpdir(), "botvendassl-"));
+  testDirectory = mkdtempSync(join(tmpdir(), "criabot-"));
   vi.stubEnv("DATABASE_PATH", join(testDirectory, "test.sqlite"));
   vi.stubEnv("MEDIA_DIR", join(testDirectory, "media"));
   vi.resetModules();

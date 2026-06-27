@@ -3,12 +3,13 @@ import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve, sep } from "node:path";
 
+import { resolveSalesDatabasePath } from "@/lib/paths.server";
 import { getSalesBotRuntime } from "@/lib/sales-bot-runtime.server";
 
 type Row = Record<string, any>;
 type QueryResult = { data: any; error: { message: string; code?: string } | null; count?: number };
 
-const databasePath = resolve(process.env.DATABASE_PATH ?? "data/botvendassl.sqlite");
+const databasePath = resolveSalesDatabasePath();
 export const mediaRoot = resolve(process.env.MEDIA_DIR ?? "data/media");
 
 mkdirSync(dirname(databasePath), { recursive: true });

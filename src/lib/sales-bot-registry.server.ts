@@ -4,6 +4,7 @@ import { existsSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 import { ensureSalesCloneDatabase } from "@/lib/database.server";
+import { resolveSalesDatabasePath } from "@/lib/paths.server";
 import type { SalesBotRuntime } from "@/lib/sales-bot-runtime.server";
 
 export type SalesBotClone = {
@@ -18,7 +19,7 @@ export type SalesBotClone = {
   updated_at: string;
 };
 
-const primaryDatabasePath = resolve(process.env.DATABASE_PATH ?? "data/botvendassl.sqlite");
+const primaryDatabasePath = resolveSalesDatabasePath();
 const registryPath = resolve(
   process.env.BOT_REGISTRY_PATH ?? dirname(primaryDatabasePath),
   process.env.BOT_REGISTRY_PATH ? "" : "bot-registry.sqlite",
@@ -190,7 +191,7 @@ export function resolveSalesBotRuntimeByWebhookSecret(receivedSecret: string) {
       id: "primary",
       key: "sales",
       token: primaryToken,
-      databasePath: resolve(process.env.DATABASE_PATH ?? "data/botvendassl.sqlite"),
+      databasePath: resolveSalesDatabasePath(),
       username: "",
       isPrimary: true,
     } satisfies SalesBotRuntime;

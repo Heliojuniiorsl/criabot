@@ -20,6 +20,17 @@ const salesBotCommands = [
   { command: "suporte", description: "Falar com suporte" },
 ];
 
+function resolveSalesDatabasePath() {
+  const configuredPath = process.env.DATABASE_PATH?.trim();
+  if (configuredPath) return resolve(configuredPath);
+
+  const criabotPath = resolve("data/criabot.sqlite");
+  const legacyPath = resolve("data/botvendassl.sqlite");
+  if (existsSync(legacyPath) && !existsSync(criabotPath)) return legacyPath;
+
+  return criabotPath;
+}
+
 async function telegramPost(token, method, body) {
   const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
     method: "POST",
@@ -32,7 +43,7 @@ async function telegramPost(token, method, body) {
   }
 }
 
-const primaryDatabasePath = resolve(process.env.DATABASE_PATH ?? "data/botvendassl.sqlite");
+const primaryDatabasePath = resolveSalesDatabasePath();
 const registryPath = resolve(
   process.env.BOT_REGISTRY_PATH ?? dirname(primaryDatabasePath),
   process.env.BOT_REGISTRY_PATH ? "" : "bot-registry.sqlite",

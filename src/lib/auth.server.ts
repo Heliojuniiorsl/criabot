@@ -3,7 +3,8 @@ import { deleteCookie, getCookie, getRequest, setCookie } from "@tanstack/react-
 
 import { sqlite } from "./database.server";
 
-const cookieName = "botvendassl_session";
+const cookieName = "criabot_session";
+const legacyCookieName = "botvendassl_session";
 const sessionDurationSeconds = 30 * 24 * 60 * 60;
 
 type AdminRow = { id: string; email: string; password_hash: string };
@@ -49,6 +50,10 @@ function createSession(adminId: string) {
   setCookie(cookieName, token, cookieOptions());
 }
 
+function getSessionCookie() {
+  return getCookie(cookieName) ?? getCookie(legacyCookieName);
+}
+
 export function hasAdminAccount() {
   const row = sqlite.prepare("SELECT COUNT(*) AS total FROM admin_accounts").get() as {
     total: number;
@@ -79,14 +84,15 @@ export function loginAdmin(email: string, password: string) {
 }
 
 export function logoutAdmin() {
-  const token = getCookie(cookieName);
+  const token = getSessionCookie();
   if (token)
     sqlite.prepare("DELETE FROM admin_sessions WHERE token_hash = ?").run(hashSessionToken(token));
   deleteCookie(cookieName, { ...cookieOptions(), maxAge: 0 });
+  deleteCookie(legacyCookieName, { ...cookieOptions(), maxAge: 0 });
 }
 
 export function getCurrentAdmin() {
-  const token = getCookie(cookieName);
+  const token = getSessionCookie();
   if (!token) return null;
   const row = sqlite
     .prepare(

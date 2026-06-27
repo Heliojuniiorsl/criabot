@@ -38,6 +38,17 @@ if (!handler || typeof handler.fetch !== "function") {
   throw new Error("O bundle TanStack não exporta um handler fetch válido");
 }
 
+function resolveSalesDatabasePath() {
+  const configuredPath = process.env.DATABASE_PATH?.trim();
+  if (configuredPath) return resolve(configuredPath);
+
+  const criabotPath = resolve("data/criabot.sqlite");
+  const legacyPath = resolve("data/botvendassl.sqlite");
+  if (existsSync(legacyPath) && !existsSync(criabotPath)) return legacyPath;
+
+  return criabotPath;
+}
+
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
   ".gif": "image/gif",
@@ -180,7 +191,7 @@ function listSalesClonesForWebhookSync() {
   const envUsernames = new Set(envClones.map((clone) => clone.username.toLowerCase()));
   const deprecatedUsernames = new Set(["bruninhabb_bot"]);
 
-  const primaryDatabasePath = resolve(process.env.DATABASE_PATH ?? "data/botvendassl.sqlite");
+  const primaryDatabasePath = resolveSalesDatabasePath();
   const registryPath = resolve(
     process.env.BOT_REGISTRY_PATH ?? dirname(primaryDatabasePath),
     process.env.BOT_REGISTRY_PATH ? "" : "bot-registry.sqlite",
@@ -232,7 +243,7 @@ function ensureSalesCloneDatabase(databasePath) {
   rmSync(`${databasePath}-shm`, { force: true });
   rmSync(`${databasePath}-wal`, { force: true });
 
-  const primaryDatabasePath = resolve(process.env.DATABASE_PATH ?? "data/botvendassl.sqlite");
+  const primaryDatabasePath = resolveSalesDatabasePath();
   const primary = new Database(primaryDatabasePath);
   try {
     primary.pragma("wal_checkpoint(FULL)");
@@ -281,7 +292,7 @@ function ensureSalesCloneDatabase(databasePath) {
 
 function ensureProductionSalesCloneDatabases() {
   if (!process.env.DANI_MILLER_BOT_TOKEN?.trim()) return;
-  const primaryDatabasePath = resolve(process.env.DATABASE_PATH ?? "data/botvendassl.sqlite");
+  const primaryDatabasePath = resolveSalesDatabasePath();
   ensureSalesCloneDatabase(
     resolve(dirname(primaryDatabasePath), "sales-bots", "danimiller-bot.sqlite"),
   );
