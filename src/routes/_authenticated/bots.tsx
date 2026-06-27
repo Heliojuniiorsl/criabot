@@ -1,13 +1,20 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Bot, Images, LogOut, Play, RotateCw, Square } from "lucide-react";
+import { Bot, Images, LogOut, Play, Plus, RotateCw, Square } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { getManagedBots, runManagedBotAction } from "@/lib/api/admin.functions";
-import { logoutAdminAccount } from "@/lib/api/auth.functions";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  createManagedSalesBot,
+  getManagedBots,
+  runManagedBotAction,
+} from "@/lib/api/admin.functions";
+import { getAdminSession, logoutAdminAccount } from "@/lib/api/auth.functions";
 
 export const Route = createFileRoute("/_authenticated/bots")({
   component: Bots,
@@ -56,8 +63,16 @@ function Bots() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const logoutFn = useServerFn(logoutAdminAccount);
+  const sessionFn = useServerFn(getAdminSession);
   const listFn = useServerFn(getManagedBots);
   const actionFn = useServerFn(runManagedBotAction);
+  const createBotFn = useServerFn(createManagedSalesBot);
+  const [token, setToken] = useState("");
+
+  const sessionQuery = useQuery({
+    queryKey: ["admin-session"],
+    queryFn: () => sessionFn(),
+  });
 
   const botsQuery = useQuery({
     queryKey: ["managed-bots"],
@@ -69,6 +84,16 @@ function Bots() {
       ),
     refetchInterval: 15_000,
     retry: 1,
+  });
+
+  const createBot = useMutation({
+    mutationFn: (data: { token: string }) => createBotFn({ data }),
+    onSuccess: async (result) => {
+      setToken("");
+      await qc.invalidateQueries({ queryKey: ["managed-bots"] });
+      toast.success(`Bot @${result.bot.username} cadastrado`);
+    },
+    onError: (error: any) => toast.error(error.message),
   });
 
   const action = useMutation({
@@ -92,6 +117,8 @@ function Bots() {
   }
 
   const bots = botsQuery.data ?? [];
+  const role = sessionQuery.data?.admin?.role ?? "creator";
+  const isAdmin = role === "admin";
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col justify-start px-4 py-6 sm:px-5 sm:py-12 md:justify-center">
@@ -102,14 +129,56 @@ function Bots() {
             Escolha qual bot deseja gerenciar
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Cada bot tem painel e banco proprios. Nome, foto e usuario sao atualizados
-            automaticamente pelo Telegram.
+            {isAdmin
+              ? "Voce esta na conta admin da plataforma. Gerencie os bots principais e os bots dos criadores."
+              : "Cadastre o token do seu bot do Telegram para criar um painel e banco proprios."}
           </p>
         </div>
         <Button variant="ghost" className="self-start sm:self-auto" onClick={signOut}>
           <LogOut className="mr-2 h-4 w-4" /> Sair
         </Button>
       </div>
+
+      <Card className="mt-8 p-5 sm:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+              Novo bot
+            </div>
+            <h2 className="mt-3 font-display text-2xl font-semibold">
+              Crie um bot com token do BotFather
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+              Cole o token do Telegram. O CriaBot cria um banco separado e prepara o painel desse
+              bot para voce configurar planos, mensagens e pagamentos.
+            </p>
+          </div>
+          <form
+            className="grid w-full gap-3 lg:max-w-xl lg:grid-cols-[1fr_auto]"
+            onSubmit={(event) => {
+              event.preventDefault();
+              createBot.mutate({ token });
+            }}
+          >
+            <div className="space-y-2">
+              <Label htmlFor="telegram_token">Token do bot</Label>
+              <Input
+                id="telegram_token"
+                value={token}
+                onChange={(event) => setToken(event.target.value)}
+                placeholder="1234567890:ABC..."
+                type="password"
+                autoComplete="off"
+                required
+              />
+            </div>
+            <Button className="lg:self-end" disabled={createBot.isPending} type="submit">
+              <Plus className="mr-2 h-4 w-4" />
+              {createBot.isPending ? "Criando..." : "Criar bot"}
+            </Button>
+          </form>
+        </div>
+      </Card>
 
       <div className="mt-10 grid gap-6 md:grid-cols-2">
         {botsQuery.isLoading && (
@@ -213,6 +282,17 @@ function Bots() {
             </Card>
           );
         })}
+        {!botsQuery.isLoading && !botsQuery.isError && bots.length === 0 && (
+          <Card className="col-span-full p-8 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <Bot className="h-7 w-7" />
+            </div>
+            <h2 className="mt-4 font-display text-2xl font-semibold">Nenhum bot cadastrado</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+              Cole o token do BotFather acima para criar o primeiro bot dessa conta.
+            </p>
+          </Card>
+        )}
       </div>
     </main>
   );

@@ -43,7 +43,6 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [createAccount, setCreateAccount] = useState(false);
   const [hasAdmin, setHasAdmin] = useState<boolean | null>(null);
-  const requiresSignupCode = hasAdmin === true;
 
   useEffect(() => {
     void statusFn().then((status) => {
@@ -71,15 +70,10 @@ function LoginPage() {
     const email = String(form.get("email") ?? "").trim();
     const password = String(form.get("password") ?? "");
     const passwordConfirmation = String(form.get("password_confirmation") ?? "");
-    const signupCode = String(form.get("signup_code") ?? "").trim();
     if (createAccount) {
       const validationError = validateNewPassword(password, passwordConfirmation);
       if (validationError) {
         toast.error(validationError);
-        return;
-      }
-      if (requiresSignupCode && !signupCode) {
-        toast.error("Informe o codigo de convite para cadastrar uma nova conta.");
         return;
       }
     }
@@ -90,7 +84,6 @@ function LoginPage() {
           data: {
             email,
             password,
-            signup_code: signupCode || undefined,
           },
         });
       } else {
@@ -198,8 +191,8 @@ function LoginPage() {
               </div>
               <p className="mt-3 text-sm leading-6 opacity-90">
                 {createAccount
-                  ? requiresSignupCode
-                    ? "Cadastre uma nova conta com o codigo de convite."
+                  ? hasAdmin
+                    ? "Crie sua conta para configurar seus proprios bots."
                     : "Cadastre a primeira conta dona do painel CriaBot."
                   : "Use seu e-mail e senha para administrar seus bots."}
               </p>
@@ -226,13 +219,6 @@ function LoginPage() {
                   Cadastro
                 </button>
               </div>
-
-              {requiresSignupCode && createAccount ? (
-                <div className="mt-4 rounded-2xl border border-primary/20 bg-accent p-4 text-sm text-accent-foreground">
-                  O painel ja tem uma conta principal. Para criar outro login, use o codigo de
-                  convite configurado em ADMIN_SIGNUP_CODE.
-                </div>
-              ) : null}
 
               <form className="mt-6 space-y-4" onSubmit={submit}>
                 <div className="space-y-2">
@@ -266,35 +252,19 @@ function LoginPage() {
                   ) : null}
                 </div>
                 {createAccount ? (
-                  <>
-                    {requiresSignupCode ? (
-                      <div className="space-y-2">
-                        <Label htmlFor="signup_code">Codigo de convite</Label>
-                        <Input
-                          className="h-12 rounded-2xl bg-white"
-                          id="signup_code"
-                          name="signup_code"
-                          type="password"
-                          autoComplete="one-time-code"
-                          placeholder="Digite o codigo de cadastro"
-                          required
-                        />
-                      </div>
-                    ) : null}
-                    <div className="space-y-2">
-                      <Label htmlFor="password_confirmation">Confirmar senha</Label>
-                      <Input
-                        className="h-12 rounded-2xl bg-white"
-                        id="password_confirmation"
-                        name="password_confirmation"
-                        type="password"
-                        minLength={12}
-                        autoComplete="new-password"
-                        placeholder="Repita a senha"
-                        required
-                      />
-                    </div>
-                  </>
+                  <div className="space-y-2">
+                    <Label htmlFor="password_confirmation">Confirmar senha</Label>
+                    <Input
+                      className="h-12 rounded-2xl bg-white"
+                      id="password_confirmation"
+                      name="password_confirmation"
+                      type="password"
+                      minLength={12}
+                      autoComplete="new-password"
+                      placeholder="Repita a senha"
+                      required
+                    />
+                  </div>
                 ) : null}
                 <Button
                   className="h-12 w-full rounded-2xl text-base"

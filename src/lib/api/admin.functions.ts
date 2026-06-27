@@ -5,11 +5,16 @@ import { randomUUID } from "node:crypto";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import Database from "better-sqlite3";
 
-import { requireAdminSession } from "@/lib/auth.server";
+import { requireAccountSession, requireAdminSession } from "@/lib/auth.server";
 import { controlManagedBot, getManagedBotToken, listManagedBots } from "@/lib/bot-manager.server";
 import { getTelegramGroups, localDb, sqlite, upsertTelegramGroup } from "@/lib/database.server";
 import { getEnvSettingsForPanel, saveEnvSettingsFromPanel } from "@/lib/env-settings.server";
-import { findSalesBotCloneByUsername, salesBotCloneRuntime } from "@/lib/sales-bot-registry.server";
+import {
+  createSalesBotClone,
+  findSalesBotCloneByKey,
+  findSalesBotCloneByUsername,
+  salesBotCloneRuntime,
+} from "@/lib/sales-bot-registry.server";
 import { enterSalesBotRuntime, getActiveSalesBotToken } from "@/lib/sales-bot-runtime.server";
 import {
   deleteImageBotMediaMany,
@@ -56,18 +61,26 @@ import {
 
 async function admin() {
   enterSalesBotRuntime(null);
-  requireAdminSession();
+  const session = requireAccountSession();
   const request = getRequest();
   const sourceUrl = request.headers.get("referer") || request.url;
   try {
     const routeUsername = new URL(sourceUrl).pathname.split("/").filter(Boolean)[0];
     if (routeUsername) {
       const clone = findSalesBotCloneByUsername(routeUsername);
-      if (clone) enterSalesBotRuntime(salesBotCloneRuntime(clone));
+      if (clone) {
+        if (session.role !== "admin" && clone.owner_account_id !== session.id) {
+          throw new Error("Esse bot nao pertence a sua conta");
+        }
+        enterSalesBotRuntime(salesBotCloneRuntime(clone));
+        return localDb;
+      }
     }
-  } catch {
-    // Server functions without a panel referrer keep using the primary database.
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("pertence")) throw error;
+    // Server functions without a panel referrer keep using the primary database for admins.
   }
+  if (session.role !== "admin") throw new Error("Crie ou abra um bot da sua conta");
   return localDb;
 }
 
@@ -167,8 +180,15 @@ export const getDashboard = createServerFn({ method: "GET" }).handler(async () =
 const managedBotKey = z.string().min(1).max(100);
 
 export const getManagedBots = createServerFn({ method: "GET" }).handler(async () => {
-  await admin();
-  return listManagedBots();
+  const session = requireAccountSession();
+  return listManagedBots(
+    session.role === "admin"
+      ? {}
+      : {
+          ownerAccountId: session.id,
+          includeStatic: false,
+        },
+  );
 });
 
 export const runManagedBotAction = createServerFn({ method: "POST" })
@@ -179,8 +199,36 @@ export const runManagedBotAction = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }) => {
-    await admin();
+    const session = requireAccountSession();
+    if (session.role !== "admin") {
+      const clone = findSalesBotCloneByKey(data.key);
+      if (!clone || clone.owner_account_id !== session.id) {
+        throw new Error("Esse bot nao pertence a sua conta");
+      }
+    }
     return controlManagedBot(data.key, data.action);
+  });
+
+export const createManagedSalesBot = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      token: z.string().trim().min(20).max(200),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const session = requireAccountSession();
+    const clone = await createSalesBotClone({
+      token: data.token,
+      ownerAccountId: session.id,
+    });
+    return {
+      ok: true,
+      bot: {
+        key: clone.key,
+        username: clone.username,
+        display_name: clone.display_name,
+      },
+    };
   });
 
 /* ----------------------------- Environment ------------------------------- */

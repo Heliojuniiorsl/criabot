@@ -60,6 +60,7 @@ sqlite.exec(`
     id TEXT PRIMARY KEY,
     email TEXT NOT NULL UNIQUE COLLATE NOCASE,
     password_hash TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'creator' CHECK (role IN ('admin', 'creator')),
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -310,7 +311,20 @@ function addColumnIfMissing(
     database.exec(
       `ALTER TABLE ${assertIdentifier(table)} ADD COLUMN ${assertIdentifier(column)} ${definition}`,
     );
+    return true;
   }
+  return false;
+}
+
+function ensureAdminAccountRoles(database: Database.Database = sqlite) {
+  addColumnIfMissing("admin_accounts", "role", "TEXT NOT NULL DEFAULT 'creator'", database);
+  const firstAdmin = database
+    .prepare("SELECT id FROM admin_accounts ORDER BY created_at ASC, id ASC LIMIT 1")
+    .get() as { id: string } | undefined;
+  if (!firstAdmin) return;
+
+  database.prepare("UPDATE admin_accounts SET role = 'admin' WHERE id = ?").run(firstAdmin.id);
+  database.prepare("UPDATE admin_accounts SET role = 'creator' WHERE id <> ?").run(firstAdmin.id);
 }
 
 function ensureTelegramGroupsSupportsChannels(database: Database.Database = sqlite) {
@@ -356,6 +370,7 @@ function ensureTelegramGroupsSupportsChannels(database: Database.Database = sqli
 
 function ensureSalesDatabaseMigrations(database: Database.Database = sqlite) {
   ensureTelegramGroupsSupportsChannels(database);
+  ensureAdminAccountRoles(database);
   addColumnIfMissing("users", "email", "TEXT", database);
   addColumnIfMissing("users", "is_blocked", "INTEGER NOT NULL DEFAULT 0", database);
   addColumnIfMissing("users", "notes", "TEXT", database);
@@ -413,6 +428,7 @@ function ensureSalesDatabaseMigrations(database: Database.Database = sqlite) {
 
 ensureTelegramGroupsSupportsChannels();
 
+ensureAdminAccountRoles();
 addColumnIfMissing("users", "email", "TEXT");
 addColumnIfMissing("users", "is_blocked", "INTEGER NOT NULL DEFAULT 0");
 addColumnIfMissing("users", "notes", "TEXT");

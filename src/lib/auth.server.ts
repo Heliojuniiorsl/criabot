@@ -7,7 +7,14 @@ const cookieName = "criabot_session";
 const legacyCookieName = "botvendassl_session";
 const sessionDurationSeconds = 30 * 24 * 60 * 60;
 
-type AdminRow = { id: string; email: string; password_hash: string };
+export type AccountRole = "admin" | "creator";
+
+type AdminRow = {
+  id: string;
+  email: string;
+  password_hash: string;
+  role: AccountRole;
+};
 
 function hashSessionToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
@@ -25,12 +32,6 @@ function verifyPassword(password: string, encoded: string) {
   const expected = Buffer.from(stored, "hex");
   const actual = scryptSync(password, salt, expected.length);
   return expected.length === actual.length && timingSafeEqual(expected, actual);
-}
-
-function safeEqualText(left: string, right: string) {
-  const leftBuffer = Buffer.from(left);
-  const rightBuffer = Buffer.from(right);
-  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
 }
 
 function cookieOptions() {
@@ -67,17 +68,10 @@ export function hasAdminAccount() {
   return row.total > 0;
 }
 
-export function createAdmin(email: string, password: string, signupCode?: string) {
+export function createAccount(email: string, password: string) {
   const normalizedEmail = email.trim().toLowerCase();
   const alreadyHasAdmin = hasAdminAccount();
-
-  if (alreadyHasAdmin) {
-    const expectedCode = process.env.ADMIN_SIGNUP_CODE?.trim();
-    if (!expectedCode) throw new Error("Configure ADMIN_SIGNUP_CODE para liberar novos cadastros");
-    if (!signupCode || !safeEqualText(signupCode.trim(), expectedCode)) {
-      throw new Error("Codigo de cadastro invalido");
-    }
-  }
+  const role: AccountRole = alreadyHasAdmin ? "creator" : "admin";
 
   const existing = sqlite
     .prepare("SELECT id FROM admin_accounts WHERE email = ? COLLATE NOCASE")
@@ -86,21 +80,23 @@ export function createAdmin(email: string, password: string, signupCode?: string
 
   const id = randomUUID();
   sqlite
-    .prepare("INSERT INTO admin_accounts (id, email, password_hash) VALUES (?, ?, ?)")
-    .run(id, normalizedEmail, hashPassword(password));
+    .prepare("INSERT INTO admin_accounts (id, email, password_hash, role) VALUES (?, ?, ?, ?)")
+    .run(id, normalizedEmail, hashPassword(password), role);
   createSession(id);
-  return { id, email: normalizedEmail };
+  return { id, email: normalizedEmail, role };
 }
 
 export function loginAdmin(email: string, password: string) {
   const account = sqlite
-    .prepare("SELECT id, email, password_hash FROM admin_accounts WHERE email = ? COLLATE NOCASE")
+    .prepare(
+      "SELECT id, email, password_hash, role FROM admin_accounts WHERE email = ? COLLATE NOCASE",
+    )
     .get(email.trim()) as AdminRow | undefined;
   if (!account || !verifyPassword(password, account.password_hash)) {
     throw new Error("E-mail ou senha incorretos");
   }
   createSession(account.id);
-  return { id: account.id, email: account.email };
+  return { id: account.id, email: account.email, role: account.role ?? "admin" };
 }
 
 export function logoutAdmin() {
@@ -116,19 +112,26 @@ export function getCurrentAdmin() {
   if (!token) return null;
   const row = sqlite
     .prepare(
-      `SELECT a.id, a.email, s.expires_at
+      `SELECT a.id, a.email, a.role, s.expires_at
        FROM admin_sessions s
        JOIN admin_accounts a ON a.id = s.admin_id
        WHERE s.token_hash = ? AND s.expires_at > ?`,
     )
     .get(hashSessionToken(token), new Date().toISOString()) as
-    | { id: string; email: string; expires_at: string }
+    | { id: string; email: string; role: AccountRole | null; expires_at: string }
     | undefined;
-  return row ? { id: row.id, email: row.email } : null;
+  return row ? { id: row.id, email: row.email, role: row.role ?? "admin" } : null;
 }
 
 export function requireAdminSession() {
   const admin = getCurrentAdmin();
   if (!admin) throw new Error("Nao autenticado");
+  if (admin.role !== "admin") throw new Error("Acesso restrito ao administrador da plataforma");
   return admin;
+}
+
+export function requireAccountSession() {
+  const account = getCurrentAdmin();
+  if (!account) throw new Error("Nao autenticado");
+  return account;
 }

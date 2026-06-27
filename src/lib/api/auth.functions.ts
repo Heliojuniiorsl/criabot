@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import {
-  createAdmin,
+  createAccount,
   getCurrentAdmin,
   hasAdminAccount,
   loginAdmin,
@@ -15,7 +15,6 @@ const credentialsSchema = z.object({
 });
 
 const createAccountSchema = credentialsSchema.extend({
-  signup_code: z.string().max(200).optional(),
   password: z
     .string()
     .min(12)
@@ -35,7 +34,7 @@ export const createAdminAccount = createServerFn({ method: "POST" })
   .validator(createAccountSchema)
   .handler(async ({ data }) => ({
     ok: true,
-    admin: createAdmin(data.email, data.password, data.signup_code),
+    admin: createAccount(data.email, data.password),
   }));
 
 export const loginAdminAccount = createServerFn({ method: "POST" })

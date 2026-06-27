@@ -95,8 +95,11 @@ function cloneConfig(clone: SalesBotClone): ManagedBotConfig {
   };
 }
 
-function allConfigs() {
-  return [...staticConfigs(), ...listSalesBotClones().map(cloneConfig)];
+function allConfigs(options: { ownerAccountId?: string; includeStatic?: boolean } = {}) {
+  return [
+    ...(options.includeStatic === false ? [] : staticConfigs()),
+    ...listSalesBotClones({ ownerAccountId: options.ownerAccountId }).map(cloneConfig),
+  ];
 }
 
 function resolveConfig(key: ManagedBotKey) {
@@ -140,11 +143,13 @@ export function getManagedBotToken(key: ManagedBotKey) {
   return resolveConfig(key)?.token ?? null;
 }
 
-export async function listManagedBots() {
+export async function listManagedBots(
+  options: { ownerAccountId?: string; includeStatic?: boolean } = {},
+) {
   const baseUrl = getPublicBaseUrl();
 
   return Promise.all(
-    allConfigs().map(async (config) => {
+    allConfigs(options).map(async (config) => {
       const token = config.token;
       const expectedWebhookUrl = baseUrl ? `${baseUrl}${config.webhookPath}` : null;
       const base = {
