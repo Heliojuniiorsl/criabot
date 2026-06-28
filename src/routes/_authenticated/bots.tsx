@@ -446,28 +446,23 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                   : "Cadastre o token do seu bot do Telegram para criar um painel e banco proprios."}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2 self-start sm:self-auto">
-            {isCreateMode ? (
-              <Button asChild variant="outline">
-                <Link to="/painel/bots">
-                  <Bot className="mr-2 h-4 w-4" />
-                  Ver bots
-                </Link>
-              </Button>
-            ) : (
-              <Button asChild>
-                <Link to="/painel/bots/novo-bot">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Criar bot
-                </Link>
-              </Button>
-            )}
-            {!embedded && (
-              <Button variant="ghost" onClick={signOut}>
-                <LogOut className="mr-2 h-4 w-4" /> Sair
-              </Button>
-            )}
-          </div>
+          {(!isCreateMode || !embedded) && (
+            <div className="flex flex-wrap gap-2 self-start sm:self-auto">
+              {!isCreateMode && (
+                <Button asChild>
+                  <Link to="/painel/bots/novo-bot">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Criar bot
+                  </Link>
+                </Button>
+              )}
+              {!embedded && (
+                <Button variant="ghost" onClick={signOut}>
+                  <LogOut className="mr-2 h-4 w-4" /> Sair
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         {isCreateMode && (
