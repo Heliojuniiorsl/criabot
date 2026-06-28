@@ -38,6 +38,7 @@ import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/publi
 import { Route as ApiPublicMediaSplatRouteImport } from './routes/api/public/media/$'
 import { Route as ApiPublicBroadcastsRunRouteImport } from './routes/api/public/broadcasts/run'
 import { Route as ApiAdminImageBotMediaIdRouteImport } from './routes/api/admin/image-bot-media/$id'
+import { Route as AuthenticatedPainelBotsNovoBotRouteImport } from './routes/_authenticated/painel/bots/novo-bot'
 
 const TermosRoute = TermosRouteImport.update({
   id: '/termos',
@@ -198,6 +199,12 @@ const ApiAdminImageBotMediaIdRoute = ApiAdminImageBotMediaIdRouteImport.update({
   path: '/api/admin/image-bot-media/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedPainelBotsNovoBotRoute =
+  AuthenticatedPainelBotsNovoBotRouteImport.update({
+    id: '/novo-bot',
+    path: '/novo-bot',
+    getParentRoute: () => AuthenticatedPainelBotsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -218,10 +225,11 @@ export interface FileRoutesByFullPath {
   '/$bot/pedidos': typeof AuthenticatedBotPedidosRoute
   '/$bot/planos': typeof AuthenticatedBotPlanosRoute
   '/$bot/usuarios': typeof AuthenticatedBotUsuariosRoute
-  '/painel/bots': typeof AuthenticatedPainelBotsRoute
+  '/painel/bots': typeof AuthenticatedPainelBotsRouteWithChildren
   '/painel/config': typeof AuthenticatedPainelConfigRoute
   '/painel/dashboard': typeof AuthenticatedPainelDashboardRoute
   '/painel/perfil': typeof AuthenticatedPainelPerfilRoute
+  '/painel/bots/novo-bot': typeof AuthenticatedPainelBotsNovoBotRoute
   '/api/admin/image-bot-media/$id': typeof ApiAdminImageBotMediaIdRoute
   '/api/public/broadcasts/run': typeof ApiPublicBroadcastsRunRoute
   '/api/public/media/$': typeof ApiPublicMediaSplatRoute
@@ -248,10 +256,11 @@ export interface FileRoutesByTo {
   '/$bot/pedidos': typeof AuthenticatedBotPedidosRoute
   '/$bot/planos': typeof AuthenticatedBotPlanosRoute
   '/$bot/usuarios': typeof AuthenticatedBotUsuariosRoute
-  '/painel/bots': typeof AuthenticatedPainelBotsRoute
+  '/painel/bots': typeof AuthenticatedPainelBotsRouteWithChildren
   '/painel/config': typeof AuthenticatedPainelConfigRoute
   '/painel/dashboard': typeof AuthenticatedPainelDashboardRoute
   '/painel/perfil': typeof AuthenticatedPainelPerfilRoute
+  '/painel/bots/novo-bot': typeof AuthenticatedPainelBotsNovoBotRoute
   '/api/admin/image-bot-media/$id': typeof ApiAdminImageBotMediaIdRoute
   '/api/public/broadcasts/run': typeof ApiPublicBroadcastsRunRoute
   '/api/public/media/$': typeof ApiPublicMediaSplatRoute
@@ -280,10 +289,11 @@ export interface FileRoutesById {
   '/_authenticated/$bot/pedidos': typeof AuthenticatedBotPedidosRoute
   '/_authenticated/$bot/planos': typeof AuthenticatedBotPlanosRoute
   '/_authenticated/$bot/usuarios': typeof AuthenticatedBotUsuariosRoute
-  '/_authenticated/painel/bots': typeof AuthenticatedPainelBotsRoute
+  '/_authenticated/painel/bots': typeof AuthenticatedPainelBotsRouteWithChildren
   '/_authenticated/painel/config': typeof AuthenticatedPainelConfigRoute
   '/_authenticated/painel/dashboard': typeof AuthenticatedPainelDashboardRoute
   '/_authenticated/painel/perfil': typeof AuthenticatedPainelPerfilRoute
+  '/_authenticated/painel/bots/novo-bot': typeof AuthenticatedPainelBotsNovoBotRoute
   '/api/admin/image-bot-media/$id': typeof ApiAdminImageBotMediaIdRoute
   '/api/public/broadcasts/run': typeof ApiPublicBroadcastsRunRoute
   '/api/public/media/$': typeof ApiPublicMediaSplatRoute
@@ -316,6 +326,7 @@ export interface FileRouteTypes {
     | '/painel/config'
     | '/painel/dashboard'
     | '/painel/perfil'
+    | '/painel/bots/novo-bot'
     | '/api/admin/image-bot-media/$id'
     | '/api/public/broadcasts/run'
     | '/api/public/media/$'
@@ -346,6 +357,7 @@ export interface FileRouteTypes {
     | '/painel/config'
     | '/painel/dashboard'
     | '/painel/perfil'
+    | '/painel/bots/novo-bot'
     | '/api/admin/image-bot-media/$id'
     | '/api/public/broadcasts/run'
     | '/api/public/media/$'
@@ -377,6 +389,7 @@ export interface FileRouteTypes {
     | '/_authenticated/painel/config'
     | '/_authenticated/painel/dashboard'
     | '/_authenticated/painel/perfil'
+    | '/_authenticated/painel/bots/novo-bot'
     | '/api/admin/image-bot-media/$id'
     | '/api/public/broadcasts/run'
     | '/api/public/media/$'
@@ -603,6 +616,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminImageBotMediaIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/painel/bots/novo-bot': {
+      id: '/_authenticated/painel/bots/novo-bot'
+      path: '/novo-bot'
+      fullPath: '/painel/bots/novo-bot'
+      preLoaderRoute: typeof AuthenticatedPainelBotsNovoBotRouteImport
+      parentRoute: typeof AuthenticatedPainelBotsRoute
+    }
   }
 }
 
@@ -641,8 +661,22 @@ const AuthenticatedBotRouteRouteWithChildren =
     AuthenticatedBotRouteRouteChildren,
   )
 
+interface AuthenticatedPainelBotsRouteChildren {
+  AuthenticatedPainelBotsNovoBotRoute: typeof AuthenticatedPainelBotsNovoBotRoute
+}
+
+const AuthenticatedPainelBotsRouteChildren: AuthenticatedPainelBotsRouteChildren =
+  {
+    AuthenticatedPainelBotsNovoBotRoute: AuthenticatedPainelBotsNovoBotRoute,
+  }
+
+const AuthenticatedPainelBotsRouteWithChildren =
+  AuthenticatedPainelBotsRoute._addFileChildren(
+    AuthenticatedPainelBotsRouteChildren,
+  )
+
 interface AuthenticatedPainelRouteRouteChildren {
-  AuthenticatedPainelBotsRoute: typeof AuthenticatedPainelBotsRoute
+  AuthenticatedPainelBotsRoute: typeof AuthenticatedPainelBotsRouteWithChildren
   AuthenticatedPainelConfigRoute: typeof AuthenticatedPainelConfigRoute
   AuthenticatedPainelDashboardRoute: typeof AuthenticatedPainelDashboardRoute
   AuthenticatedPainelPerfilRoute: typeof AuthenticatedPainelPerfilRoute
@@ -650,7 +684,7 @@ interface AuthenticatedPainelRouteRouteChildren {
 
 const AuthenticatedPainelRouteRouteChildren: AuthenticatedPainelRouteRouteChildren =
   {
-    AuthenticatedPainelBotsRoute: AuthenticatedPainelBotsRoute,
+    AuthenticatedPainelBotsRoute: AuthenticatedPainelBotsRouteWithChildren,
     AuthenticatedPainelConfigRoute: AuthenticatedPainelConfigRoute,
     AuthenticatedPainelDashboardRoute: AuthenticatedPainelDashboardRoute,
     AuthenticatedPainelPerfilRoute: AuthenticatedPainelPerfilRoute,

@@ -163,7 +163,12 @@ function LegacyBotsRoute() {
   );
 }
 
-export function BotsPanelContent({ embedded = false }: { embedded?: boolean }) {
+type BotsPanelContentProps = {
+  embedded?: boolean;
+  mode?: "list" | "create";
+};
+
+export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelContentProps) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const logoutFn = useServerFn(logoutAdminAccount);
@@ -173,7 +178,6 @@ export function BotsPanelContent({ embedded = false }: { embedded?: boolean }) {
   const createBotFn = useServerFn(createManagedSalesBot);
   const validateTokenFn = useServerFn(validateManagedSalesBotToken);
   const verifyVipChatFn = useServerFn(verifyManagedSalesBotVipChat);
-  const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [token, setToken] = useState("");
   const [validatedBot, setValidatedBot] = useState<ValidatedTelegramBot | null>(null);
@@ -218,9 +222,9 @@ export function BotsPanelContent({ embedded = false }: { embedded?: boolean }) {
       setValidationError(null);
       setVipChatId("");
       setStep(1);
-      setShowCreateWizard(false);
       await qc.invalidateQueries({ queryKey: ["managed-bots"] });
       toast.success(`Bot @${result.bot.username} cadastrado`);
+      await navigate({ to: "/painel/bots" });
     },
     onError: (error: any) => toast.error(error.message),
   });
@@ -283,6 +287,7 @@ export function BotsPanelContent({ embedded = false }: { embedded?: boolean }) {
   const bots = botsQuery.data ?? [];
   const role = sessionQuery.data?.admin?.role ?? "creator";
   const isAdmin = role === "admin";
+  const isCreateMode = mode === "create";
   const cleanToken = token.trim();
   const hasToken = cleanToken.length > 0;
   const tokenHasValidFormat = !hasToken || telegramBotTokenPattern.test(cleanToken);
@@ -427,24 +432,34 @@ export function BotsPanelContent({ embedded = false }: { embedded?: boolean }) {
                 embedded ? "" : "mt-6 sm:mt-8"
               }`}
             >
-              {embedded ? "Bots" : "Escolha qual bot deseja gerenciar"}
+              {embedded
+                ? isCreateMode
+                  ? "Criar bot"
+                  : "Bots"
+                : "Escolha qual bot deseja gerenciar"}
             </h1>
             <p className="mt-2 text-muted-foreground">
-              {isAdmin
-                ? "Voce esta na conta admin da plataforma. Gerencie os bots principais e os bots dos criadores."
-                : "Cadastre o token do seu bot do Telegram para criar um painel e banco proprios."}
+              {isCreateMode
+                ? "Siga o onboarding guiado para conectar o Telegram e criar o banco separado do novo bot."
+                : isAdmin
+                  ? "Voce esta na conta admin da plataforma. Gerencie os bots principais e os bots dos criadores."
+                  : "Cadastre o token do seu bot do Telegram para criar um painel e banco proprios."}
             </p>
           </div>
           <div className="flex flex-wrap gap-2 self-start sm:self-auto">
-            {showCreateWizard ? (
-              <Button variant="outline" onClick={() => setShowCreateWizard(false)}>
-                <Bot className="mr-2 h-4 w-4" />
-                Ver bots
+            {isCreateMode ? (
+              <Button asChild variant="outline">
+                <Link to="/painel/bots">
+                  <Bot className="mr-2 h-4 w-4" />
+                  Ver bots
+                </Link>
               </Button>
             ) : (
-              <Button onClick={() => setShowCreateWizard(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Criar bot
+              <Button asChild>
+                <Link to="/painel/bots/novo-bot">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Criar bot
+                </Link>
               </Button>
             )}
             {!embedded && (
@@ -455,7 +470,7 @@ export function BotsPanelContent({ embedded = false }: { embedded?: boolean }) {
           </div>
         </div>
 
-        {showCreateWizard && (
+        {isCreateMode && (
           <Card
             className={`overflow-hidden border bg-white/90 p-5 shadow-sm backdrop-blur sm:p-6 ${
               embedded ? "mt-6" : "mt-8"
@@ -887,122 +902,128 @@ export function BotsPanelContent({ embedded = false }: { embedded?: boolean }) {
           </Card>
         )}
 
-        <div className={`${showCreateWizard ? "mt-10" : "mt-8"} grid gap-6 md:grid-cols-2`}>
-          {botsQuery.isLoading && (
-            <Card className="col-span-full p-8 text-center text-muted-foreground">
-              Consultando os bots no Telegram...
-            </Card>
-          )}
-          {botsQuery.isError && (
-            <Card className="col-span-full p-8 text-center">
-              <p className="font-semibold text-destructive">
-                Não consegui consultar os bots agora.
-              </p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {botsQuery.error instanceof Error
-                  ? botsQuery.error.message
-                  : "Falha ao carregar a lista de bots."}
-              </p>
-              <Button className="mt-5" onClick={() => botsQuery.refetch()}>
-                Tentar novamente
-              </Button>
-            </Card>
-          )}
-          {bots.map((bot) => {
-            const Icon = bot.kind === "sales" ? Bot : Images;
-            const busy = action.isPending && action.variables?.key === bot.key;
-            return (
-              <Card key={bot.key} className="flex h-full flex-col bg-white/95 p-5 shadow-sm sm:p-7">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    {bot.photo_data_url ? (
-                      <img
-                        src={bot.photo_data_url}
-                        alt={`Foto de ${bot.display_name}`}
-                        className="h-16 w-16 rounded-2xl object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                        <Icon className="h-8 w-8" />
-                      </div>
-                    )}
-                  </div>
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClasses[bot.status]}`}
-                  >
-                    {statusLabels[bot.status]}
-                  </span>
-                </div>
-
-                <h2 className="mt-5 font-display text-2xl font-semibold">{bot.display_name}</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {bot.username ? `@${bot.username}` : bot.status_message}
-                </p>
-                {bot.username && bot.status_message && (
-                  <p
-                    className={`mt-2 text-xs ${
-                      bot.status === "error" ? "text-destructive" : "text-muted-foreground"
-                    }`}
-                  >
-                    {bot.status_message}
-                  </p>
-                )}
-                {bot.pending_updates > 0 && (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {bot.pending_updates} atualização(ões) aguardando processamento
-                  </p>
-                )}
-
-                <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  <Button
-                    variant="outline"
-                    disabled={!bot.configured || bot.status === "online" || busy}
-                    onClick={() => action.mutate({ key: bot.key, action: "start" })}
-                  >
-                    <Play className="mr-1 h-4 w-4" /> Iniciar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    disabled={!bot.configured || bot.status === "stopped" || busy}
-                    onClick={() => action.mutate({ key: bot.key, action: "stop" })}
-                  >
-                    <Square className="mr-1 h-4 w-4" /> Parar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    disabled={!bot.configured || busy}
-                    onClick={() => action.mutate({ key: bot.key, action: "restart" })}
-                  >
-                    <RotateCw className={`mr-1 h-4 w-4 ${busy ? "animate-spin" : ""}`} /> Reiniciar
-                  </Button>
-                </div>
-
-                {bot.username ? (
-                  <Button asChild className="mt-5 w-full">
-                    <Link to="/$bot/dashboard" params={{ bot: bot.username }}>
-                      Abrir painel
-                    </Link>
-                  </Button>
-                ) : (
-                  <Button className="mt-5 w-full" disabled>
-                    Configure o token para abrir
-                  </Button>
-                )}
+        {!isCreateMode && (
+          <div className="mt-8 grid gap-6 md:grid-cols-2">
+            {botsQuery.isLoading && (
+              <Card className="col-span-full p-8 text-center text-muted-foreground">
+                Consultando os bots no Telegram...
               </Card>
-            );
-          })}
-          {!botsQuery.isLoading && !botsQuery.isError && bots.length === 0 && (
-            <Card className="col-span-full p-8 text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                <Bot className="h-7 w-7" />
-              </div>
-              <h2 className="mt-4 font-display text-2xl font-semibold">Nenhum bot cadastrado</h2>
-              <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-                Clique em Criar bot para cadastrar o primeiro token do BotFather dessa conta.
-              </p>
-            </Card>
-          )}
-        </div>
+            )}
+            {botsQuery.isError && (
+              <Card className="col-span-full p-8 text-center">
+                <p className="font-semibold text-destructive">
+                  Não consegui consultar os bots agora.
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {botsQuery.error instanceof Error
+                    ? botsQuery.error.message
+                    : "Falha ao carregar a lista de bots."}
+                </p>
+                <Button className="mt-5" onClick={() => botsQuery.refetch()}>
+                  Tentar novamente
+                </Button>
+              </Card>
+            )}
+            {bots.map((bot) => {
+              const Icon = bot.kind === "sales" ? Bot : Images;
+              const busy = action.isPending && action.variables?.key === bot.key;
+              return (
+                <Card
+                  key={bot.key}
+                  className="flex h-full flex-col bg-white/95 p-5 shadow-sm sm:p-7"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      {bot.photo_data_url ? (
+                        <img
+                          src={bot.photo_data_url}
+                          alt={`Foto de ${bot.display_name}`}
+                          className="h-16 w-16 rounded-2xl object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                          <Icon className="h-8 w-8" />
+                        </div>
+                      )}
+                    </div>
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClasses[bot.status]}`}
+                    >
+                      {statusLabels[bot.status]}
+                    </span>
+                  </div>
+
+                  <h2 className="mt-5 font-display text-2xl font-semibold">{bot.display_name}</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {bot.username ? `@${bot.username}` : bot.status_message}
+                  </p>
+                  {bot.username && bot.status_message && (
+                    <p
+                      className={`mt-2 text-xs ${
+                        bot.status === "error" ? "text-destructive" : "text-muted-foreground"
+                      }`}
+                    >
+                      {bot.status_message}
+                    </p>
+                  )}
+                  {bot.pending_updates > 0 && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {bot.pending_updates} atualização(ões) aguardando processamento
+                    </p>
+                  )}
+
+                  <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    <Button
+                      variant="outline"
+                      disabled={!bot.configured || bot.status === "online" || busy}
+                      onClick={() => action.mutate({ key: bot.key, action: "start" })}
+                    >
+                      <Play className="mr-1 h-4 w-4" /> Iniciar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={!bot.configured || bot.status === "stopped" || busy}
+                      onClick={() => action.mutate({ key: bot.key, action: "stop" })}
+                    >
+                      <Square className="mr-1 h-4 w-4" /> Parar
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={!bot.configured || busy}
+                      onClick={() => action.mutate({ key: bot.key, action: "restart" })}
+                    >
+                      <RotateCw className={`mr-1 h-4 w-4 ${busy ? "animate-spin" : ""}`} />{" "}
+                      Reiniciar
+                    </Button>
+                  </div>
+
+                  {bot.username ? (
+                    <Button asChild className="mt-5 w-full">
+                      <Link to="/$bot/dashboard" params={{ bot: bot.username }}>
+                        Abrir painel
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button className="mt-5 w-full" disabled>
+                      Configure o token para abrir
+                    </Button>
+                  )}
+                </Card>
+              );
+            })}
+            {!botsQuery.isLoading && !botsQuery.isError && bots.length === 0 && (
+              <Card className="col-span-full p-8 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <Bot className="h-7 w-7" />
+                </div>
+                <h2 className="mt-4 font-display text-2xl font-semibold">Nenhum bot cadastrado</h2>
+                <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                  Clique em Criar bot para cadastrar o primeiro token do BotFather dessa conta.
+                </p>
+              </Card>
+            )}
+          </div>
+        )}
       </div>
     </main>
   );
