@@ -173,6 +173,7 @@ export function BotsPanelContent({ embedded = false }: { embedded?: boolean }) {
   const createBotFn = useServerFn(createManagedSalesBot);
   const validateTokenFn = useServerFn(validateManagedSalesBotToken);
   const verifyVipChatFn = useServerFn(verifyManagedSalesBotVipChat);
+  const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [token, setToken] = useState("");
   const [validatedBot, setValidatedBot] = useState<ValidatedTelegramBot | null>(null);
@@ -217,6 +218,7 @@ export function BotsPanelContent({ embedded = false }: { embedded?: boolean }) {
       setValidationError(null);
       setVipChatId("");
       setStep(1);
+      setShowCreateWizard(false);
       await qc.invalidateQueries({ queryKey: ["managed-bots"] });
       toast.success(`Bot @${result.bot.username} cadastrado`);
     },
@@ -433,440 +435,459 @@ export function BotsPanelContent({ embedded = false }: { embedded?: boolean }) {
                 : "Cadastre o token do seu bot do Telegram para criar um painel e banco proprios."}
             </p>
           </div>
-          {!embedded && (
-            <Button variant="ghost" className="self-start sm:self-auto" onClick={signOut}>
-              <LogOut className="mr-2 h-4 w-4" /> Sair
-            </Button>
-          )}
+          <div className="flex flex-wrap gap-2 self-start sm:self-auto">
+            {showCreateWizard ? (
+              <Button variant="outline" onClick={() => setShowCreateWizard(false)}>
+                <Bot className="mr-2 h-4 w-4" />
+                Ver bots
+              </Button>
+            ) : (
+              <Button onClick={() => setShowCreateWizard(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Criar bot
+              </Button>
+            )}
+            {!embedded && (
+              <Button variant="ghost" onClick={signOut}>
+                <LogOut className="mr-2 h-4 w-4" /> Sair
+              </Button>
+            )}
+          </div>
         </div>
 
-        <Card
-          className={`overflow-hidden border bg-white/90 p-5 shadow-sm backdrop-blur sm:p-6 ${
-            embedded ? "mt-6" : "mt-8"
-          }`}
-        >
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <div className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                Onboarding guiado
+        {showCreateWizard && (
+          <Card
+            className={`overflow-hidden border bg-white/90 p-5 shadow-sm backdrop-blur sm:p-6 ${
+              embedded ? "mt-6" : "mt-8"
+            }`}
+          >
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                  Onboarding guiado
+                </div>
+                <h2 className="mt-3 font-display text-2xl font-semibold">
+                  Crie um bot pronto para vender
+                </h2>
+                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                  Configure o Telegram, o grupo VIP e o primeiro plano. O CriaBot cria o bot no
+                  sistema atual com banco separado.
+                </p>
               </div>
-              <h2 className="mt-3 font-display text-2xl font-semibold">
-                Crie um bot pronto para vender
-              </h2>
-              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                Configure o Telegram, o grupo VIP e o primeiro plano. O CriaBot cria o bot no
-                sistema atual com banco separado.
-              </p>
+              <div className="text-sm text-muted-foreground">Passo {step} de 4</div>
             </div>
-            <div className="text-sm text-muted-foreground">Passo {step} de 4</div>
-          </div>
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-4">
-            {wizardSteps.map((item) => {
-              const Icon = item.icon;
-              const active = item.id === step;
-              const done = item.id < step;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setStep(item.id)}
-                  className={`rounded-2xl border p-3 text-left transition ${
-                    active
-                      ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                      : done
-                        ? "border-primary/30 bg-primary/5"
-                        : "bg-white"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                        active ? "bg-white/20" : "bg-primary/10 text-primary"
-                      }`}
-                    >
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    <span className="text-xs font-semibold">Passo {item.id}</span>
-                  </div>
-                  <p className="mt-3 text-sm font-semibold">{item.title}</p>
-                  <p
-                    className={`mt-1 text-xs ${active ? "text-white/80" : "text-muted-foreground"}`}
-                  >
-                    {item.description}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]">
-            <form
-              className="rounded-3xl border bg-white p-5"
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (step === 4) {
-                  handleCreateBot();
-                } else {
-                  goNext();
-                }
-              }}
-            >
-              {step === 1 && (
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="font-display text-xl font-semibold">
-                      Passo 1: conectar Telegram
-                    </h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Cole o token do BotFather. Antes de salvar, vamos consultar o Telegram.
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="telegram_token">Token do bot</Label>
-                    <Input
-                      id="telegram_token"
-                      value={token}
-                      onChange={(event) => handleTokenChange(event.target.value)}
-                      placeholder="1234567890:ABC..."
-                      type="password"
-                      autoComplete="off"
-                      required
-                      className={
-                        !tokenHasValidFormat || validationError ? "border-destructive" : undefined
-                      }
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Formato esperado: numeros, dois pontos e a chave secreta do BotFather.
-                    </p>
-                    {!tokenHasValidFormat && (
-                      <p className="flex items-center gap-1 text-xs font-medium text-destructive">
-                        <AlertCircle className="h-3.5 w-3.5" />
-                        Token em formato invalido.
-                      </p>
-                    )}
-                    {validationError && (
-                      <p className="flex items-center gap-1 text-xs font-medium text-destructive">
-                        <AlertCircle className="h-3.5 w-3.5" />
-                        {validationError}
-                      </p>
-                    )}
-                  </div>
-                  <Button
+            <div className="mt-6 grid gap-3 sm:grid-cols-4">
+              {wizardSteps.map((item) => {
+                const Icon = item.icon;
+                const active = item.id === step;
+                const done = item.id < step;
+                return (
+                  <button
+                    key={item.id}
                     type="button"
-                    variant="outline"
-                    onClick={handleValidateToken}
-                    disabled={!hasToken || !tokenHasValidFormat || validateToken.isPending}
+                    onClick={() => setStep(item.id)}
+                    className={`rounded-2xl border p-3 text-left transition ${
+                      active
+                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                        : done
+                          ? "border-primary/30 bg-primary/5"
+                          : "bg-white"
+                    }`}
                   >
-                    {validateToken.isPending ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <ShieldCheck className="mr-2 h-4 w-4" />
-                    )}
-                    {validateToken.isPending ? "Validando..." : "Validar token"}
-                  </Button>
-                </div>
-              )}
-
-              {step === 2 && (
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="font-display text-xl font-semibold">
-                      Passo 2: configurar grupo/canal VIP
-                    </h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      O bot precisa ser administrador desse grupo ou canal para entregar o convite
-                      apos o pagamento.
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="vip_chat_id">ID do grupo ou canal VIP</Label>
-                    <Input
-                      id="vip_chat_id"
-                      value={vipChatId}
-                      onChange={(event) => handleVipChatIdChange(event.target.value)}
-                      placeholder="-1001234567890"
-                      inputMode="numeric"
-                      required
-                      className={vipChatId && !vipChatIdIsValid ? "border-destructive" : undefined}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Use o ID negativo do Telegram. Canais e supergrupos normalmente comecam com
-                      -100.
-                    </p>
-                    {vipChatId && !vipChatIdIsValid && (
-                      <p className="flex items-center gap-1 text-xs font-medium text-destructive">
-                        <AlertCircle className="h-3.5 w-3.5" />
-                        Informe um ID negativo valido.
-                      </p>
-                    )}
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleVerifyVipChat}
-                    disabled={
-                      !validatedTokenIsCurrent ||
-                      !vipChatIdIsValid ||
-                      verifyVipChat.isPending ||
-                      vipVerificationIsCurrent
-                    }
-                  >
-                    {verifyVipChat.isPending ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : vipVerificationIsCurrent ? (
-                      <CheckCircle2 className="mr-2 h-4 w-4" />
-                    ) : (
-                      <ShieldCheck className="mr-2 h-4 w-4" />
-                    )}
-                    {vipVerificationIsCurrent ? "VIP verificado" : "Verificar grupo/canal VIP"}
-                  </Button>
-                  {vipVerificationIsCurrent && (
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
-                      Bot confirmado como administrador
-                      {vipVerification?.member_count != null
-                        ? ` · ${vipVerification.member_count} membro(s)`
-                        : ""}
-                      .
-                    </div>
-                  )}
-                  {vipVerificationError && (
-                    <p className="flex items-center gap-1 text-xs font-medium text-destructive">
-                      <AlertCircle className="h-3.5 w-3.5" />
-                      {vipVerificationError}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {step === 3 && (
-                <div className="space-y-5">
-                  <div>
-                    <h3 className="font-display text-xl font-semibold">
-                      Passo 3: primeira mensagem e plano
-                    </h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Essa mensagem aparece no /start e o plano ja fica ativo no bot.
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="welcome_message">Mensagem inicial do bot</Label>
-                    <Textarea
-                      id="welcome_message"
-                      rows={4}
-                      value={welcomeMessage}
-                      onChange={(event) => setWelcomeMessage(event.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="plan_name">Nome do plano</Label>
-                      <Input
-                        id="plan_name"
-                        value={planName}
-                        onChange={(event) => setPlanName(event.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="plan_button_label">Texto do botao</Label>
-                      <Input
-                        id="plan_button_label"
-                        value={planButtonLabel}
-                        onChange={(event) => setPlanButtonLabel(event.target.value)}
-                        placeholder="Vazio usa nome e preco"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="plan_detail_message">Mensagem ao abrir o plano</Label>
-                    <Textarea
-                      id="plan_detail_message"
-                      rows={5}
-                      value={planDetailMessage}
-                      onChange={(event) => setPlanDetailMessage(event.target.value)}
-                      required
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Variaveis: {"{{nome}}"}, {"{{preco}}"}, {"{{validade}}"}.
-                    </p>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="plan_price">Preco (R$)</Label>
-                      <Input
-                        id="plan_price"
-                        value={planPrice}
-                        onChange={(event) => setPlanPrice(event.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="plan_access_type">Validade</Label>
-                      <select
-                        id="plan_access_type"
-                        className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                        value={planAccessType}
-                        onChange={(event) =>
-                          setPlanAccessType(event.target.value as PlanAccessType)
-                        }
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                          active ? "bg-white/20" : "bg-primary/10 text-primary"
+                        }`}
                       >
-                        <option value="days">Por dias</option>
-                        <option value="lifetime">Vitalicio</option>
-                      </select>
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <span className="text-xs font-semibold">Passo {item.id}</span>
+                    </div>
+                    <p className="mt-3 text-sm font-semibold">{item.title}</p>
+                    <p
+                      className={`mt-1 text-xs ${active ? "text-white/80" : "text-muted-foreground"}`}
+                    >
+                      {item.description}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]">
+              <form
+                className="rounded-3xl border bg-white p-5"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (step === 4) {
+                    handleCreateBot();
+                  } else {
+                    goNext();
+                  }
+                }}
+              >
+                {step === 1 && (
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="font-display text-xl font-semibold">
+                        Passo 1: conectar Telegram
+                      </h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Cole o token do BotFather. Antes de salvar, vamos consultar o Telegram.
+                      </p>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="plan_duration_days">Dias</Label>
+                      <Label htmlFor="telegram_token">Token do bot</Label>
                       <Input
-                        id="plan_duration_days"
-                        value={planDurationDays}
-                        onChange={(event) => setPlanDurationDays(event.target.value)}
-                        disabled={planAccessType === "lifetime"}
-                        required={planAccessType === "days"}
+                        id="telegram_token"
+                        value={token}
+                        onChange={(event) => handleTokenChange(event.target.value)}
+                        placeholder="1234567890:ABC..."
+                        type="password"
+                        autoComplete="off"
+                        required
+                        className={
+                          !tokenHasValidFormat || validationError ? "border-destructive" : undefined
+                        }
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Formato esperado: numeros, dois pontos e a chave secreta do BotFather.
+                      </p>
+                      {!tokenHasValidFormat && (
+                        <p className="flex items-center gap-1 text-xs font-medium text-destructive">
+                          <AlertCircle className="h-3.5 w-3.5" />
+                          Token em formato invalido.
+                        </p>
+                      )}
+                      {validationError && (
+                        <p className="flex items-center gap-1 text-xs font-medium text-destructive">
+                          <AlertCircle className="h-3.5 w-3.5" />
+                          {validationError}
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleValidateToken}
+                      disabled={!hasToken || !tokenHasValidFormat || validateToken.isPending}
+                    >
+                      {validateToken.isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <ShieldCheck className="mr-2 h-4 w-4" />
+                      )}
+                      {validateToken.isPending ? "Validando..." : "Validar token"}
+                    </Button>
+                  </div>
+                )}
+
+                {step === 2 && (
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="font-display text-xl font-semibold">
+                        Passo 2: configurar grupo/canal VIP
+                      </h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        O bot precisa ser administrador desse grupo ou canal para entregar o convite
+                        apos o pagamento.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="vip_chat_id">ID do grupo ou canal VIP</Label>
+                      <Input
+                        id="vip_chat_id"
+                        value={vipChatId}
+                        onChange={(event) => handleVipChatIdChange(event.target.value)}
+                        placeholder="-1001234567890"
+                        inputMode="numeric"
+                        required
+                        className={
+                          vipChatId && !vipChatIdIsValid ? "border-destructive" : undefined
+                        }
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Use o ID negativo do Telegram. Canais e supergrupos normalmente comecam com
+                        -100.
+                      </p>
+                      {vipChatId && !vipChatIdIsValid && (
+                        <p className="flex items-center gap-1 text-xs font-medium text-destructive">
+                          <AlertCircle className="h-3.5 w-3.5" />
+                          Informe um ID negativo valido.
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleVerifyVipChat}
+                      disabled={
+                        !validatedTokenIsCurrent ||
+                        !vipChatIdIsValid ||
+                        verifyVipChat.isPending ||
+                        vipVerificationIsCurrent
+                      }
+                    >
+                      {verifyVipChat.isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : vipVerificationIsCurrent ? (
+                        <CheckCircle2 className="mr-2 h-4 w-4" />
+                      ) : (
+                        <ShieldCheck className="mr-2 h-4 w-4" />
+                      )}
+                      {vipVerificationIsCurrent ? "VIP verificado" : "Verificar grupo/canal VIP"}
+                    </Button>
+                    {vipVerificationIsCurrent && (
+                      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+                        Bot confirmado como administrador
+                        {vipVerification?.member_count != null
+                          ? ` · ${vipVerification.member_count} membro(s)`
+                          : ""}
+                        .
+                      </div>
+                    )}
+                    {vipVerificationError && (
+                      <p className="flex items-center gap-1 text-xs font-medium text-destructive">
+                        <AlertCircle className="h-3.5 w-3.5" />
+                        {vipVerificationError}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {step === 3 && (
+                  <div className="space-y-5">
+                    <div>
+                      <h3 className="font-display text-xl font-semibold">
+                        Passo 3: primeira mensagem e plano
+                      </h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Essa mensagem aparece no /start e o plano ja fica ativo no bot.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="welcome_message">Mensagem inicial do bot</Label>
+                      <Textarea
+                        id="welcome_message"
+                        rows={4}
+                        value={welcomeMessage}
+                        onChange={(event) => setWelcomeMessage(event.target.value)}
+                        required
                       />
                     </div>
-                  </div>
-                </div>
-              )}
-
-              {step === 4 && (
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="font-display text-xl font-semibold">Passo 4: revisar e criar</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Confira tudo antes de criar. O banco separado sera criado automaticamente.
-                    </p>
-                  </div>
-                  <div className="grid gap-3 text-sm">
-                    <div className="rounded-2xl bg-muted/60 p-4">
-                      <p className="text-xs font-semibold uppercase text-muted-foreground">Bot</p>
-                      <p className="mt-1 font-semibold">
-                        {validatedBot
-                          ? `${validatedBot.display_name} (@${validatedBot.username})`
-                          : "Nao validado"}
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="plan_name">Nome do plano</Label>
+                        <Input
+                          id="plan_name"
+                          value={planName}
+                          onChange={(event) => setPlanName(event.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="plan_button_label">Texto do botao</Label>
+                        <Input
+                          id="plan_button_label"
+                          value={planButtonLabel}
+                          onChange={(event) => setPlanButtonLabel(event.target.value)}
+                          placeholder="Vazio usa nome e preco"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="plan_detail_message">Mensagem ao abrir o plano</Label>
+                      <Textarea
+                        id="plan_detail_message"
+                        rows={5}
+                        value={planDetailMessage}
+                        onChange={(event) => setPlanDetailMessage(event.target.value)}
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Variaveis: {"{{nome}}"}, {"{{preco}}"}, {"{{validade}}"}.
                       </p>
                     </div>
-                    <div className="rounded-2xl bg-muted/60 p-4">
-                      <p className="text-xs font-semibold uppercase text-muted-foreground">
-                        Grupo/canal VIP
-                      </p>
-                      <p className="mt-1 font-semibold">{vipChatId || "Nao informado"}</p>
-                    </div>
-                    <div className="rounded-2xl bg-muted/60 p-4">
-                      <p className="text-xs font-semibold uppercase text-muted-foreground">
-                        Plano inicial
-                      </p>
-                      <p className="mt-1 font-semibold">{planName || "Nao informado"}</p>
-                      <p className="text-muted-foreground">
-                        {planPriceIsValid ? formatCurrency(planPriceNumber) : "Preco invalido"} ·{" "}
-                        {planAccessType === "lifetime"
-                          ? "Vitalicio"
-                          : `${planDurationDays || "0"} dias`}
-                      </p>
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="plan_price">Preco (R$)</Label>
+                        <Input
+                          id="plan_price"
+                          value={planPrice}
+                          onChange={(event) => setPlanPrice(event.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="plan_access_type">Validade</Label>
+                        <select
+                          id="plan_access_type"
+                          className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                          value={planAccessType}
+                          onChange={(event) =>
+                            setPlanAccessType(event.target.value as PlanAccessType)
+                          }
+                        >
+                          <option value="days">Por dias</option>
+                          <option value="lifetime">Vitalicio</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="plan_duration_days">Dias</Label>
+                        <Input
+                          id="plan_duration_days"
+                          value={planDurationDays}
+                          onChange={(event) => setPlanDurationDays(event.target.value)}
+                          disabled={planAccessType === "lifetime"}
+                          required={planAccessType === "days"}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-
-              <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
-                <Button type="button" variant="outline" onClick={goBack} disabled={step === 1}>
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Voltar
-                </Button>
-                {step < 4 ? (
-                  <Button type="submit">
-                    Continuar
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                ) : (
-                  <Button type="submit" disabled={!canCreateBot || createBot.isPending}>
-                    {createBot.isPending ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Plus className="mr-2 h-4 w-4" />
-                    )}
-                    {createBot.isPending ? "Criando..." : "Criar bot"}
-                  </Button>
                 )}
-              </div>
-            </form>
 
-            <aside className="rounded-3xl border bg-gradient-to-b from-primary/5 to-white p-5">
-              <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-                {validatedTokenIsCurrent ? (
-                  <CheckCircle2 className="h-4 w-4" />
-                ) : (
-                  <Bot className="h-4 w-4" />
+                {step === 4 && (
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="font-display text-xl font-semibold">
+                        Passo 4: revisar e criar
+                      </h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Confira tudo antes de criar. O banco separado sera criado automaticamente.
+                      </p>
+                    </div>
+                    <div className="grid gap-3 text-sm">
+                      <div className="rounded-2xl bg-muted/60 p-4">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground">Bot</p>
+                        <p className="mt-1 font-semibold">
+                          {validatedBot
+                            ? `${validatedBot.display_name} (@${validatedBot.username})`
+                            : "Nao validado"}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-muted/60 p-4">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground">
+                          Grupo/canal VIP
+                        </p>
+                        <p className="mt-1 font-semibold">{vipChatId || "Nao informado"}</p>
+                      </div>
+                      <div className="rounded-2xl bg-muted/60 p-4">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground">
+                          Plano inicial
+                        </p>
+                        <p className="mt-1 font-semibold">{planName || "Nao informado"}</p>
+                        <p className="text-muted-foreground">
+                          {planPriceIsValid ? formatCurrency(planPriceNumber) : "Preco invalido"} ·{" "}
+                          {planAccessType === "lifetime"
+                            ? "Vitalicio"
+                            : `${planDurationDays || "0"} dias`}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 )}
-                Resumo em tempo real
-              </div>
 
-              {validatedTokenIsCurrent && validatedBot ? (
-                <div className="mt-5 flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm">
-                  {validatedBot.photo_data_url ? (
-                    <img
-                      src={validatedBot.photo_data_url}
-                      alt={`Foto de ${validatedBot.display_name}`}
-                      className="h-16 w-16 rounded-2xl object-cover"
-                    />
+                <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+                  <Button type="button" variant="outline" onClick={goBack} disabled={step === 1}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Voltar
+                  </Button>
+                  {step < 4 ? (
+                    <Button type="submit">
+                      Continuar
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
                   ) : (
-                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                      <Bot className="h-8 w-8" />
-                    </div>
+                    <Button type="submit" disabled={!canCreateBot || createBot.isPending}>
+                      {createBot.isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Plus className="mr-2 h-4 w-4" />
+                      )}
+                      {createBot.isPending ? "Criando..." : "Criar bot"}
+                    </Button>
                   )}
-                  <div className="min-w-0">
-                    <p className="truncate font-display text-xl font-semibold">
-                      {validatedBot.display_name}
-                    </p>
-                    <p className="truncate text-sm text-muted-foreground">
-                      @{validatedBot.username}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      ID Telegram: {validatedBot.telegram_id}
-                    </p>
-                  </div>
                 </div>
-              ) : (
-                <div className="mt-5 rounded-2xl border border-dashed bg-white/70 p-5 text-sm text-muted-foreground">
-                  Valide o token para aparecer a previa do Telegram.
-                </div>
-              )}
+              </form>
 
-              <div className="mt-5 space-y-3 text-sm">
-                <div className="rounded-2xl bg-white/80 p-4">
-                  <div className="flex items-center gap-2 font-semibold">
-                    <Users className="h-4 w-4 text-primary" />
-                    VIP
-                  </div>
-                  <p className="mt-1 text-muted-foreground">
-                    {vipVerificationIsCurrent
-                      ? `Verificado: ${vipChatId}`
-                      : vipChatIdIsValid
-                        ? "Aguardando verificacao"
-                        : "Aguardando ID do grupo/canal"}
-                  </p>
+              <aside className="rounded-3xl border bg-gradient-to-b from-primary/5 to-white p-5">
+                <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                  {validatedTokenIsCurrent ? (
+                    <CheckCircle2 className="h-4 w-4" />
+                  ) : (
+                    <Bot className="h-4 w-4" />
+                  )}
+                  Resumo em tempo real
                 </div>
-                <div className="rounded-2xl bg-white/80 p-4">
-                  <div className="flex items-center gap-2 font-semibold">
-                    <MessageSquareText className="h-4 w-4 text-primary" />
-                    Plano
-                  </div>
-                  <p className="mt-1 text-muted-foreground">
-                    {planName || "Sem nome"} ·{" "}
-                    {planPriceIsValid ? formatCurrency(planPriceNumber) : "preco invalido"}
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-white/80 p-4 text-xs text-muted-foreground">
-                  Quando criar, o CriaBot registra um bot proprio, cria o banco separado e grava a
-                  mensagem inicial + primeiro plano nesse banco.
-                </div>
-              </div>
-            </aside>
-          </div>
-        </Card>
 
-        <div className="mt-10 grid gap-6 md:grid-cols-2">
+                {validatedTokenIsCurrent && validatedBot ? (
+                  <div className="mt-5 flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm">
+                    {validatedBot.photo_data_url ? (
+                      <img
+                        src={validatedBot.photo_data_url}
+                        alt={`Foto de ${validatedBot.display_name}`}
+                        className="h-16 w-16 rounded-2xl object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                        <Bot className="h-8 w-8" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="truncate font-display text-xl font-semibold">
+                        {validatedBot.display_name}
+                      </p>
+                      <p className="truncate text-sm text-muted-foreground">
+                        @{validatedBot.username}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        ID Telegram: {validatedBot.telegram_id}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-5 rounded-2xl border border-dashed bg-white/70 p-5 text-sm text-muted-foreground">
+                    Valide o token para aparecer a previa do Telegram.
+                  </div>
+                )}
+
+                <div className="mt-5 space-y-3 text-sm">
+                  <div className="rounded-2xl bg-white/80 p-4">
+                    <div className="flex items-center gap-2 font-semibold">
+                      <Users className="h-4 w-4 text-primary" />
+                      VIP
+                    </div>
+                    <p className="mt-1 text-muted-foreground">
+                      {vipVerificationIsCurrent
+                        ? `Verificado: ${vipChatId}`
+                        : vipChatIdIsValid
+                          ? "Aguardando verificacao"
+                          : "Aguardando ID do grupo/canal"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl bg-white/80 p-4">
+                    <div className="flex items-center gap-2 font-semibold">
+                      <MessageSquareText className="h-4 w-4 text-primary" />
+                      Plano
+                    </div>
+                    <p className="mt-1 text-muted-foreground">
+                      {planName || "Sem nome"} ·{" "}
+                      {planPriceIsValid ? formatCurrency(planPriceNumber) : "preco invalido"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl bg-white/80 p-4 text-xs text-muted-foreground">
+                    Quando criar, o CriaBot registra um bot proprio, cria o banco separado e grava a
+                    mensagem inicial + primeiro plano nesse banco.
+                  </div>
+                </div>
+              </aside>
+            </div>
+          </Card>
+        )}
+
+        <div className={`${showCreateWizard ? "mt-10" : "mt-8"} grid gap-6 md:grid-cols-2`}>
           {botsQuery.isLoading && (
             <Card className="col-span-full p-8 text-center text-muted-foreground">
               Consultando os bots no Telegram...
@@ -977,7 +998,7 @@ export function BotsPanelContent({ embedded = false }: { embedded?: boolean }) {
               </div>
               <h2 className="mt-4 font-display text-2xl font-semibold">Nenhum bot cadastrado</h2>
               <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-                Cole o token do BotFather acima para criar o primeiro bot dessa conta.
+                Clique em Criar bot para cadastrar o primeiro token do BotFather dessa conta.
               </p>
             </Card>
           )}
