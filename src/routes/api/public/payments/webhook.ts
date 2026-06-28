@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getMercadoPagoPayment, validateMercadoPagoSignature } from "@/lib/mercado-pago.server";
 import { localDb } from "@/lib/database.server";
 import { getManagedBotToken } from "@/lib/bot-manager.server";
-import { findSalesBotCloneById, salesBotCloneRuntime } from "@/lib/sales-bot-registry.server";
+import { findManagedSalesBotById, managedSalesBotRuntime } from "@/lib/sales-bot-registry.server";
 import { enterSalesBotRuntime } from "@/lib/sales-bot-runtime.server";
 import {
   fulfillImageBotLimitBoostPayment,
@@ -119,12 +119,12 @@ export const Route = createFileRoute("/api/public/payments/webhook")({
           }
 
           let salesOrderReference = externalReference;
-          const cloneReference = /^sales:([^:]+):(.+)$/.exec(externalReference);
-          if (cloneReference) {
-            const clone = findSalesBotCloneById(cloneReference[1]);
-            if (!clone) throw new Error("Bot de vendas do pagamento nao foi encontrado");
-            enterSalesBotRuntime(salesBotCloneRuntime(clone));
-            salesOrderReference = cloneReference[2];
+          const managedBotReference = /^sales:([^:]+):(.+)$/.exec(externalReference);
+          if (managedBotReference) {
+            const bot = findManagedSalesBotById(managedBotReference[1]);
+            if (!bot) throw new Error("Bot de vendas do pagamento nao foi encontrado");
+            enterSalesBotRuntime(managedSalesBotRuntime(bot));
+            salesOrderReference = managedBotReference[2];
           } else {
             enterSalesBotRuntime(null);
           }

@@ -1,16 +1,36 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Bot, CheckCircle2, LockKeyhole, Sparkles, Zap } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+  ArrowRight,
+  Bot,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  LockKeyhole,
+  Mail,
+  ShieldCheck,
+  Sparkles,
+  Zap,
+} from "lucide-react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createAdminAccount, getAuthStatus, loginAdminAccount } from "@/lib/api/auth.functions";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({ component: LoginPage });
+
+type PasswordStrength = {
+  label: "Fraca" | "Boa" | "Forte";
+  helper: string;
+  width: string;
+  color: string;
+};
 
 function getAuthErrorMessage(error: { code?: string; message: string }) {
   const messages: Record<string, string> = {
@@ -35,6 +55,38 @@ function validateNewPassword(password: string, confirmation: string) {
   return null;
 }
 
+function getPasswordStrength(password: string): PasswordStrength | null {
+  if (!password) return null;
+  let score = 0;
+  if (password.length >= 12) score += 1;
+  if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score += 1;
+  if (/\d/.test(password)) score += 1;
+  if (/[^A-Za-z0-9]/.test(password)) score += 1;
+
+  if (score <= 1) {
+    return {
+      label: "Fraca",
+      helper: "Ainda falta seguranca.",
+      width: "w-1/3",
+      color: "bg-destructive",
+    };
+  }
+  if (score <= 3) {
+    return {
+      label: "Boa",
+      helper: "Quase perfeita.",
+      width: "w-2/3",
+      color: "bg-[#fbbc04]",
+    };
+  }
+  return {
+    label: "Forte",
+    helper: "Boa para proteger seus bots.",
+    width: "w-full",
+    color: "bg-[#34a853]",
+  };
+}
+
 function LoginPage() {
   const navigate = useNavigate();
   const statusFn = useServerFn(getAuthStatus);
@@ -43,11 +95,21 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [createAccount, setCreateAccount] = useState(false);
   const [hasAdmin, setHasAdmin] = useState<boolean | null>(null);
+  const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false);
+
+  const passwordStrength = useMemo(() => getPasswordStrength(password), [password]);
+  const passwordMismatch = Boolean(
+    createAccount && passwordConfirmation && password !== passwordConfirmation,
+  );
 
   useEffect(() => {
     void statusFn().then((status) => {
       if (status.authenticated) {
-        void navigate({ to: "/bots" });
+        void navigate({ to: "/painel" });
         return;
       }
       setHasAdmin(status.hasAdmin);
@@ -57,6 +119,8 @@ function LoginPage() {
 
   function openLogin() {
     setCreateAccount(false);
+    setAcceptedTerms(false);
+    setPasswordConfirmation("");
   }
 
   function openSignup() {
@@ -64,16 +128,18 @@ function LoginPage() {
     setCreateAccount(true);
   }
 
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const email = String(form.get("email") ?? "").trim();
-    const password = String(form.get("password") ?? "");
-    const passwordConfirmation = String(form.get("password_confirmation") ?? "");
     if (createAccount) {
       const validationError = validateNewPassword(password, passwordConfirmation);
       if (validationError) {
         toast.error(validationError);
+        return;
+      }
+      if (!acceptedTerms) {
+        toast.error("Aceite os termos para criar sua conta.");
         return;
       }
     }
@@ -89,7 +155,7 @@ function LoginPage() {
       } else {
         await loginFn({ data: { email, password } });
       }
-      await navigate({ to: "/bots" });
+      await navigate({ to: "/painel" });
     } catch (error) {
       toast.error(getAuthErrorMessage(error as Error));
     } finally {
@@ -97,24 +163,21 @@ function LoginPage() {
     }
   }
 
-  return (
-    <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#e8f0fe,transparent_32rem),linear-gradient(135deg,#ffffff_0%,#f7f9fc_52%,#eef3fd_100%)] px-4 py-5 text-foreground sm:px-6 lg:px-8">
-      <div className="pointer-events-none absolute right-[-12rem] top-[-12rem] h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-[-10rem] left-[-10rem] h-80 w-80 rounded-full bg-chart-2/10 blur-3xl" />
+  const accountModeText = createAccount
+    ? hasAdmin
+      ? "Crie sua conta para configurar seus proprios bots. Ela sera criada como creator."
+      : "Cadastre a primeira conta dona da plataforma CriaBot."
+    : "Entre para administrar seus bots, planos, pagamentos e automacoes.";
 
-      <div className="relative mx-auto flex min-h-[calc(100vh-2.5rem)] w-full max-w-7xl flex-col">
-        <header className="flex items-center justify-between rounded-full border bg-white/80 px-4 py-3 shadow-sm backdrop-blur md:px-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
-              <Bot className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="font-display text-lg font-semibold text-primary">CriaBot</div>
-              <div className="hidden text-xs text-muted-foreground sm:block">
-                Plataforma de bots para Telegram
-              </div>
-            </div>
-          </div>
+  return (
+    <main className="relative min-h-screen overflow-hidden bg-[#f8fafd] text-foreground">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_25%_20%,rgba(26,115,232,.18),transparent_30rem),radial-gradient(circle_at_80%_10%,rgba(52,168,83,.12),transparent_24rem)]" />
+      <div className="pointer-events-none absolute bottom-[-12rem] left-[-12rem] h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
+      <div className="pointer-events-none absolute right-[-10rem] top-[20%] h-96 w-96 rounded-full bg-[#34a853]/10 blur-3xl" />
+
+      <div className="relative mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
+        <header className="flex items-center justify-between rounded-[1.75rem] border bg-white/85 px-4 py-3 shadow-sm backdrop-blur md:px-6">
+          <BrandMark subtitle="Plataforma de bots para Telegram" />
           <div className="flex items-center gap-2">
             <Button
               size="sm"
@@ -135,53 +198,69 @@ function LoginPage() {
           </div>
         </header>
 
-        <section className="grid flex-1 items-center gap-8 py-10 lg:grid-cols-[1.08fr_0.92fr] lg:py-14">
-          <div className="space-y-8">
-            <div className="inline-flex items-center gap-2 rounded-full border bg-white/80 px-4 py-2 text-sm font-medium text-primary shadow-sm">
+        <section className="grid flex-1 items-center gap-9 py-8 lg:grid-cols-[1.04fr_0.96fr] lg:py-12">
+          <div className="space-y-7">
+            <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-white/80 px-4 py-2 text-sm font-semibold text-primary shadow-sm backdrop-blur">
               <Sparkles className="h-4 w-4" />
-              Painel unico para gerenciar seus bots
+              Crie bots para voce ou para seus clientes
             </div>
 
             <div className="max-w-3xl space-y-5">
-              <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-                Crie, controle e venda com bots no Telegram.
+              <h1 className="font-display text-4xl font-semibold tracking-tight text-[#202124] sm:text-5xl lg:text-6xl">
+                Sua plataforma para criar, vender e gerenciar bots.
               </h1>
               <p className="max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
-                Configure planos, pagamentos Pix, mensagens automaticas, grupos, usuarios e entregas
-                digitais em uma tela limpa, rapida e pronta para crescer.
+                Cada conta pode criar seus proprios bots com painel, token, banco, planos, mensagens
+                e pagamentos separados. Voce continua com a conta admin para controlar a plataforma.
               </p>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
               {[
                 ["Bots independentes", "Cada bot com painel, token e banco separados."],
-                ["Pagamento integrado", "Pix Mercado Pago com webhooks e historico."],
-                ["Automacao total", "Mensagens, grupos, acessos e midias no painel."],
+                ["Pronto para vender", "Planos, Pix, webhooks e entregas em um so lugar."],
+                ["Feito para crescer", "Criadores entram, configuram e gerenciam seus bots."],
               ].map(([title, description]) => (
                 <div
-                  className="rounded-3xl border bg-white/75 p-4 shadow-sm backdrop-blur"
+                  className="rounded-[1.6rem] border bg-white/80 p-4 shadow-sm backdrop-blur"
                   key={title}
                 >
                   <CheckCircle2 className="mb-3 h-5 w-5 text-primary" />
-                  <h2 className="font-semibold">{title}</h2>
+                  <h2 className="font-semibold text-[#202124]">{title}</h2>
                   <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid gap-3 rounded-[1.75rem] border bg-white/75 p-4 shadow-sm backdrop-blur sm:grid-cols-3">
+              {[
+                ["Admin", "Sua conta antiga continua dona da plataforma."],
+                ["Creator", "Novas contas criam apenas os proprios bots."],
+                ["Seguro", "Tokens ficam no servidor, longe do navegador."],
+              ].map(([title, description]) => (
+                <div className="flex gap-3" key={title}>
+                  <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                  <div>
+                    <div className="text-sm font-semibold">{title}</div>
+                    <div className="text-xs leading-5 text-muted-foreground">{description}</div>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <Card className="mx-auto w-full max-w-md overflow-hidden border bg-white/90 p-0 shadow-xl backdrop-blur">
-            <div className="border-b bg-gradient-to-br from-primary to-[#4f8df5] p-6 text-primary-foreground">
-              <div className="flex items-center justify-between gap-4">
+          <Card className="mx-auto w-full max-w-[460px] overflow-hidden border bg-white/95 p-0 shadow-2xl shadow-primary/10 backdrop-blur">
+            <div className="bg-gradient-to-br from-primary via-[#2f7ee9] to-[#6ea8fe] p-6 text-primary-foreground">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm font-medium opacity-90">
-                    {createAccount ? "Primeira configuracao" : "Acesso administrativo"}
+                  <p className="text-sm font-semibold opacity-90">
+                    {createAccount ? "Criar acesso" : "Acesso ao painel"}
                   </p>
                   <h2 className="mt-2 font-display text-3xl font-semibold">
-                    {createAccount ? "Criar conta" : "Entrar no painel"}
+                    {createAccount ? "Cadastrar conta" : "Entrar no CriaBot"}
                   </h2>
                 </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20">
                   {createAccount ? (
                     <Zap className="h-6 w-6" />
                   ) : (
@@ -189,30 +268,26 @@ function LoginPage() {
                   )}
                 </div>
               </div>
-              <p className="mt-3 text-sm leading-6 opacity-90">
-                {createAccount
-                  ? hasAdmin
-                    ? "Crie sua conta para configurar seus proprios bots."
-                    : "Cadastre a primeira conta dona do painel CriaBot."
-                  : "Use seu e-mail e senha para administrar seus bots."}
-              </p>
+              <p className="mt-3 text-sm leading-6 opacity-95">{accountModeText}</p>
             </div>
 
-            <div className="p-6">
+            <div className="p-5 sm:p-6">
               <div className="grid grid-cols-2 rounded-2xl bg-muted p-1">
                 <button
-                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                    !createAccount ? "bg-white text-primary shadow-sm" : "text-muted-foreground"
-                  }`}
+                  className={cn(
+                    "rounded-xl px-4 py-2.5 text-sm font-semibold transition",
+                    !createAccount ? "bg-white text-primary shadow-sm" : "text-muted-foreground",
+                  )}
                   type="button"
                   onClick={openLogin}
                 >
                   Login
                 </button>
                 <button
-                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                    createAccount ? "bg-white text-primary shadow-sm" : "text-muted-foreground"
-                  }`}
+                  className={cn(
+                    "rounded-xl px-4 py-2.5 text-sm font-semibold transition",
+                    createAccount ? "bg-white text-primary shadow-sm" : "text-muted-foreground",
+                  )}
                   type="button"
                   onClick={openSignup}
                 >
@@ -223,62 +298,155 @@ function LoginPage() {
               <form className="mt-6 space-y-4" onSubmit={submit}>
                 <div className="space-y-2">
                   <Label htmlFor="email">E-mail</Label>
-                  <Input
-                    className="h-12 rounded-2xl bg-white"
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    placeholder="voce@email.com"
-                    required
-                  />
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      className="h-12 rounded-2xl bg-white pl-11"
+                      id="email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder="voce@email.com"
+                      required
+                    />
+                  </div>
                 </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="password">Senha</Label>
-                  <Input
-                    className="h-12 rounded-2xl bg-white"
-                    id="password"
-                    name="password"
-                    type="password"
-                    minLength={createAccount ? 12 : 8}
-                    autoComplete={createAccount ? "new-password" : "current-password"}
-                    placeholder="Digite sua senha"
-                    required
-                  />
-                  {createAccount ? (
+                  <div className="relative">
+                    <Input
+                      className="h-12 rounded-2xl bg-white pr-11"
+                      id="password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      minLength={createAccount ? 12 : 8}
+                      autoComplete={createAccount ? "new-password" : "current-password"}
+                      placeholder="Digite sua senha"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      required
+                    />
+                    <button
+                      aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                      className="absolute right-3 top-1/2 rounded-full p-2 text-muted-foreground transition hover:bg-muted hover:text-primary"
+                      onClick={() => setShowPassword((value) => !value)}
+                      type="button"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {createAccount && passwordStrength ? (
+                    <div>
+                      <div className="mb-1.5 flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Forca da senha</span>
+                        <span className="font-semibold text-foreground">
+                          {passwordStrength.label} - {passwordStrength.helper}
+                        </span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all",
+                            passwordStrength.width,
+                            passwordStrength.color,
+                          )}
+                        />
+                      </div>
+                    </div>
+                  ) : createAccount ? (
                     <p className="text-xs leading-5 text-muted-foreground">
                       Use 12+ caracteres com maiuscula, minuscula, numero e simbolo.
                     </p>
                   ) : null}
                 </div>
+
                 {createAccount ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="password_confirmation">Confirmar senha</Label>
-                    <Input
-                      className="h-12 rounded-2xl bg-white"
-                      id="password_confirmation"
-                      name="password_confirmation"
-                      type="password"
-                      minLength={12}
-                      autoComplete="new-password"
-                      placeholder="Repita a senha"
-                      required
-                    />
-                  </div>
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="password_confirmation">Confirmar senha</Label>
+                      <div className="relative">
+                        <Input
+                          className={cn(
+                            "h-12 rounded-2xl bg-white pr-11",
+                            passwordMismatch ? "border-destructive" : "",
+                          )}
+                          id="password_confirmation"
+                          name="password_confirmation"
+                          type={showPasswordConfirmation ? "text" : "password"}
+                          minLength={12}
+                          autoComplete="new-password"
+                          placeholder="Repita a senha"
+                          value={passwordConfirmation}
+                          onChange={(event) => setPasswordConfirmation(event.target.value)}
+                          required
+                        />
+                        <button
+                          aria-label={showPasswordConfirmation ? "Ocultar senha" : "Mostrar senha"}
+                          className="absolute right-3 top-1/2 rounded-full p-2 text-muted-foreground transition hover:bg-muted hover:text-primary"
+                          onClick={() => setShowPasswordConfirmation((value) => !value)}
+                          type="button"
+                        >
+                          {showPasswordConfirmation ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                      {passwordConfirmation ? (
+                        <p
+                          className={cn(
+                            "text-xs font-medium",
+                            passwordMismatch ? "text-destructive" : "text-[#188038]",
+                          )}
+                        >
+                          {passwordMismatch ? "As senhas nao coincidem." : "As senhas coincidem."}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border bg-muted/40 p-3 text-xs leading-5 text-muted-foreground">
+                      <input
+                        checked={acceptedTerms}
+                        className="mt-1 accent-primary"
+                        onChange={(event) => setAcceptedTerms(event.target.checked)}
+                        type="checkbox"
+                      />
+                      <span>
+                        Li e aceito os{" "}
+                        <a
+                          className="font-semibold text-primary underline underline-offset-2"
+                          href="/termos"
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          termos de uso
+                        </a>{" "}
+                        do CriaBot.
+                      </span>
+                    </label>
+                  </>
                 ) : null}
+
                 <Button
                   className="h-12 w-full rounded-2xl text-base"
-                  disabled={loading}
+                  disabled={loading || (createAccount && !acceptedTerms)}
                   type="submit"
                 >
                   {loading ? "Aguarde..." : createAccount ? "Criar conta" : "Entrar"}
+                  {!loading && <ArrowRight className="ml-2 h-4 w-4" />}
                 </Button>
               </form>
 
-              <p className="mt-5 text-center text-xs leading-5 text-muted-foreground">
-                Ambiente privado. Proteja seus tokens, chaves de pagamento e acessos de
-                administrador.
-              </p>
+              <div className="mt-5 flex items-start gap-2 rounded-2xl border bg-accent/70 p-3 text-xs leading-5 text-accent-foreground">
+                <Bot className="mt-0.5 h-4 w-4 shrink-0" />
+                <p>
+                  {createAccount
+                    ? "Depois do cadastro, voce podera cadastrar seu bot pelo token do BotFather."
+                    : "Use uma senha forte e nunca compartilhe tokens, chaves de pagamento ou acessos."}
+                </p>
+              </div>
             </div>
           </Card>
         </section>

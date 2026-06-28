@@ -3,10 +3,10 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowLeftRight,
+  BarChart3,
   CreditCard,
   Gift,
   LayoutDashboard,
-  BarChart3,
   LogOut,
   Megaphone,
   MessagesSquare,
@@ -16,6 +16,7 @@ import {
   Users,
 } from "lucide-react";
 
+import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
 import { logoutAdminAccount } from "@/lib/api/auth.functions";
 import { ManagedBotContext, type ManagedBotPanel } from "@/lib/managed-bot-context";
@@ -58,7 +59,13 @@ export function AdminLayout({ bot, children }: { bot: ManagedBotPanel; children:
     <ManagedBotContext.Provider value={bot}>
       <div className="fixed inset-0 flex overflow-hidden bg-background">
         <aside className="hidden h-dvh w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar p-4 md:flex">
-          <div className="flex items-center gap-3 px-2 py-4">
+          <BrandMark
+            className="border-b border-sidebar-border px-2 pb-4 pt-2"
+            imageClassName="h-10 w-10 rounded-xl"
+            subtitle="Painel de bots"
+          />
+
+          <div className="mt-4 flex items-center gap-3 rounded-3xl border bg-background/70 px-3 py-3">
             {bot.photo_data_url ? (
               <img
                 src={bot.photo_data_url}
@@ -77,7 +84,13 @@ export function AdminLayout({ bot, children }: { bot: ManagedBotPanel; children:
           </div>
           <nav className="mt-4 flex-1 space-y-1">
             <a
-              href="/bots"
+              href="/painel"
+              className="flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            >
+              <LayoutDashboard className="h-4 w-4" /> Painel
+            </a>
+            <a
+              href="/painel/bots"
               className="flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
             >
               <ArrowLeftRight className="h-4 w-4" /> Trocar bot
@@ -110,6 +123,7 @@ export function AdminLayout({ bot, children }: { bot: ManagedBotPanel; children:
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-background/95 px-4 py-3 backdrop-blur md:hidden">
             <div className="flex min-w-0 items-center gap-2">
+              <BrandMark compact imageClassName="h-8 w-8 rounded-lg" />
               {bot.photo_data_url ? (
                 <img src={bot.photo_data_url} alt="" className="h-8 w-8 rounded-lg object-cover" />
               ) : null}
@@ -118,7 +132,13 @@ export function AdminLayout({ bot, children }: { bot: ManagedBotPanel; children:
           </header>
           <nav className="sticky top-[57px] z-20 flex gap-1 overflow-x-auto overscroll-x-contain border-b border-border bg-background/95 px-2 py-2 backdrop-blur md:hidden">
             <a
-              href="/bots"
+              href="/painel"
+              className="shrink-0 whitespace-nowrap rounded-full px-3 py-2 text-xs font-medium text-muted-foreground"
+            >
+              Painel
+            </a>
+            <a
+              href="/painel/bots"
               className="shrink-0 whitespace-nowrap rounded-full px-3 py-2 text-xs font-medium text-muted-foreground"
             >
               Trocar bot

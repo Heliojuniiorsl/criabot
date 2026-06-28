@@ -841,7 +841,7 @@ function SalesBotSettings() {
         </Button>
       </form>
 
-      {!bot.is_clone && <EnvironmentSettingsPanel />}
+      {!bot.is_custom && <EnvironmentSettingsPanel />}
     </div>
   );
 }

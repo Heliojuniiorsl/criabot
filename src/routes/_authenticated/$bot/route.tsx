@@ -67,7 +67,7 @@ function ManagedBotRoute() {
             O endereço não corresponde a nenhum bot configurado neste painel.
           </p>
           <Button asChild className="mt-6">
-            <Link to="/bots">Voltar para os bots</Link>
+            <Link to="/painel">Voltar para o painel</Link>
           </Button>
         </Card>
       </main>

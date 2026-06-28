@@ -27,7 +27,7 @@ export const Route = createFileRoute("/api/public/broadcasts/run")({
           await import("@/lib/image-bot-premium-reminders.server");
         const { runPendingPixReminders, runSubscriptionAutomation } =
           await import("@/lib/sales.server");
-        const { listSalesBotClones, salesBotCloneRuntime } =
+        const { listManagedSalesBots, managedSalesBotRuntime } =
           await import("@/lib/sales-bot-registry.server");
         const { enterSalesBotRuntime, runWithSalesBotRuntime } =
           await import("@/lib/sales-bot-runtime.server");
@@ -42,12 +42,12 @@ export const Route = createFileRoute("/api/public/broadcasts/run")({
         };
 
         enterSalesBotRuntime(null);
-        const [primarySales, cloneSales, imageGroupAutomations, premiumExpiryReminders] =
+        const [primarySales, managedSalesBots, imageGroupAutomations, premiumExpiryReminders] =
           await Promise.all([
             runSalesAutomations(),
             Promise.all(
-              listSalesBotClones().map((clone) =>
-                runWithSalesBotRuntime(salesBotCloneRuntime(clone), runSalesAutomations),
+              listManagedSalesBots().map((bot) =>
+                runWithSalesBotRuntime(managedSalesBotRuntime(bot), runSalesAutomations),
               ),
             ),
             runDueImageBotGroupAutomations(),
@@ -60,7 +60,7 @@ export const Route = createFileRoute("/api/public/broadcasts/run")({
           premiumExpiryReminders,
           subscriptions: primarySales.subscriptions,
           pendingPix: primarySales.pendingPix,
-          salesClones: cloneSales,
+          managedSalesBots,
         });
       },
     },

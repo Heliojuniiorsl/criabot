@@ -14,7 +14,12 @@ import { Route as PagamentoRouteImport } from './routes/pagamento'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedBotsRouteImport } from './routes/_authenticated/bots'
+import { Route as AuthenticatedPainelRouteRouteImport } from './routes/_authenticated/painel/route'
 import { Route as AuthenticatedBotRouteRouteImport } from './routes/_authenticated/$bot/route'
+import { Route as AuthenticatedPainelPerfilRouteImport } from './routes/_authenticated/painel/perfil'
+import { Route as AuthenticatedPainelDashboardRouteImport } from './routes/_authenticated/painel/dashboard'
+import { Route as AuthenticatedPainelConfigRouteImport } from './routes/_authenticated/painel/config'
+import { Route as AuthenticatedPainelBotsRouteImport } from './routes/_authenticated/painel/bots'
 import { Route as AuthenticatedBotUsuariosRouteImport } from './routes/_authenticated/$bot/usuarios'
 import { Route as AuthenticatedBotPlanosRouteImport } from './routes/_authenticated/$bot/planos'
 import { Route as AuthenticatedBotPedidosRouteImport } from './routes/_authenticated/$bot/pedidos'
@@ -58,10 +63,39 @@ const AuthenticatedBotsRoute = AuthenticatedBotsRouteImport.update({
   path: '/bots',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPainelRouteRoute =
+  AuthenticatedPainelRouteRouteImport.update({
+    id: '/painel',
+    path: '/painel',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedBotRouteRoute = AuthenticatedBotRouteRouteImport.update({
   id: '/$bot',
   path: '/$bot',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPainelPerfilRoute =
+  AuthenticatedPainelPerfilRouteImport.update({
+    id: '/perfil',
+    path: '/perfil',
+    getParentRoute: () => AuthenticatedPainelRouteRoute,
+  } as any)
+const AuthenticatedPainelDashboardRoute =
+  AuthenticatedPainelDashboardRouteImport.update({
+    id: '/dashboard',
+    path: '/dashboard',
+    getParentRoute: () => AuthenticatedPainelRouteRoute,
+  } as any)
+const AuthenticatedPainelConfigRoute =
+  AuthenticatedPainelConfigRouteImport.update({
+    id: '/config',
+    path: '/config',
+    getParentRoute: () => AuthenticatedPainelRouteRoute,
+  } as any)
+const AuthenticatedPainelBotsRoute = AuthenticatedPainelBotsRouteImport.update({
+  id: '/bots',
+  path: '/bots',
+  getParentRoute: () => AuthenticatedPainelRouteRoute,
 } as any)
 const AuthenticatedBotUsuariosRoute =
   AuthenticatedBotUsuariosRouteImport.update({
@@ -170,6 +204,7 @@ export interface FileRoutesByFullPath {
   '/pagamento': typeof PagamentoRoute
   '/termos': typeof TermosRoute
   '/$bot': typeof AuthenticatedBotRouteRouteWithChildren
+  '/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/bots': typeof AuthenticatedBotsRoute
   '/$bot/administracao': typeof AuthenticatedBotAdministracaoRoute
   '/$bot/clientes': typeof AuthenticatedBotClientesRoute
@@ -183,6 +218,10 @@ export interface FileRoutesByFullPath {
   '/$bot/pedidos': typeof AuthenticatedBotPedidosRoute
   '/$bot/planos': typeof AuthenticatedBotPlanosRoute
   '/$bot/usuarios': typeof AuthenticatedBotUsuariosRoute
+  '/painel/bots': typeof AuthenticatedPainelBotsRoute
+  '/painel/config': typeof AuthenticatedPainelConfigRoute
+  '/painel/dashboard': typeof AuthenticatedPainelDashboardRoute
+  '/painel/perfil': typeof AuthenticatedPainelPerfilRoute
   '/api/admin/image-bot-media/$id': typeof ApiAdminImageBotMediaIdRoute
   '/api/public/broadcasts/run': typeof ApiPublicBroadcastsRunRoute
   '/api/public/media/$': typeof ApiPublicMediaSplatRoute
@@ -195,6 +234,7 @@ export interface FileRoutesByTo {
   '/pagamento': typeof PagamentoRoute
   '/termos': typeof TermosRoute
   '/$bot': typeof AuthenticatedBotRouteRouteWithChildren
+  '/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/bots': typeof AuthenticatedBotsRoute
   '/$bot/administracao': typeof AuthenticatedBotAdministracaoRoute
   '/$bot/clientes': typeof AuthenticatedBotClientesRoute
@@ -208,6 +248,10 @@ export interface FileRoutesByTo {
   '/$bot/pedidos': typeof AuthenticatedBotPedidosRoute
   '/$bot/planos': typeof AuthenticatedBotPlanosRoute
   '/$bot/usuarios': typeof AuthenticatedBotUsuariosRoute
+  '/painel/bots': typeof AuthenticatedPainelBotsRoute
+  '/painel/config': typeof AuthenticatedPainelConfigRoute
+  '/painel/dashboard': typeof AuthenticatedPainelDashboardRoute
+  '/painel/perfil': typeof AuthenticatedPainelPerfilRoute
   '/api/admin/image-bot-media/$id': typeof ApiAdminImageBotMediaIdRoute
   '/api/public/broadcasts/run': typeof ApiPublicBroadcastsRunRoute
   '/api/public/media/$': typeof ApiPublicMediaSplatRoute
@@ -222,6 +266,7 @@ export interface FileRoutesById {
   '/pagamento': typeof PagamentoRoute
   '/termos': typeof TermosRoute
   '/_authenticated/$bot': typeof AuthenticatedBotRouteRouteWithChildren
+  '/_authenticated/painel': typeof AuthenticatedPainelRouteRouteWithChildren
   '/_authenticated/bots': typeof AuthenticatedBotsRoute
   '/_authenticated/$bot/administracao': typeof AuthenticatedBotAdministracaoRoute
   '/_authenticated/$bot/clientes': typeof AuthenticatedBotClientesRoute
@@ -235,6 +280,10 @@ export interface FileRoutesById {
   '/_authenticated/$bot/pedidos': typeof AuthenticatedBotPedidosRoute
   '/_authenticated/$bot/planos': typeof AuthenticatedBotPlanosRoute
   '/_authenticated/$bot/usuarios': typeof AuthenticatedBotUsuariosRoute
+  '/_authenticated/painel/bots': typeof AuthenticatedPainelBotsRoute
+  '/_authenticated/painel/config': typeof AuthenticatedPainelConfigRoute
+  '/_authenticated/painel/dashboard': typeof AuthenticatedPainelDashboardRoute
+  '/_authenticated/painel/perfil': typeof AuthenticatedPainelPerfilRoute
   '/api/admin/image-bot-media/$id': typeof ApiAdminImageBotMediaIdRoute
   '/api/public/broadcasts/run': typeof ApiPublicBroadcastsRunRoute
   '/api/public/media/$': typeof ApiPublicMediaSplatRoute
@@ -249,6 +298,7 @@ export interface FileRouteTypes {
     | '/pagamento'
     | '/termos'
     | '/$bot'
+    | '/painel'
     | '/bots'
     | '/$bot/administracao'
     | '/$bot/clientes'
@@ -262,6 +312,10 @@ export interface FileRouteTypes {
     | '/$bot/pedidos'
     | '/$bot/planos'
     | '/$bot/usuarios'
+    | '/painel/bots'
+    | '/painel/config'
+    | '/painel/dashboard'
+    | '/painel/perfil'
     | '/api/admin/image-bot-media/$id'
     | '/api/public/broadcasts/run'
     | '/api/public/media/$'
@@ -274,6 +328,7 @@ export interface FileRouteTypes {
     | '/pagamento'
     | '/termos'
     | '/$bot'
+    | '/painel'
     | '/bots'
     | '/$bot/administracao'
     | '/$bot/clientes'
@@ -287,6 +342,10 @@ export interface FileRouteTypes {
     | '/$bot/pedidos'
     | '/$bot/planos'
     | '/$bot/usuarios'
+    | '/painel/bots'
+    | '/painel/config'
+    | '/painel/dashboard'
+    | '/painel/perfil'
     | '/api/admin/image-bot-media/$id'
     | '/api/public/broadcasts/run'
     | '/api/public/media/$'
@@ -300,6 +359,7 @@ export interface FileRouteTypes {
     | '/pagamento'
     | '/termos'
     | '/_authenticated/$bot'
+    | '/_authenticated/painel'
     | '/_authenticated/bots'
     | '/_authenticated/$bot/administracao'
     | '/_authenticated/$bot/clientes'
@@ -313,6 +373,10 @@ export interface FileRouteTypes {
     | '/_authenticated/$bot/pedidos'
     | '/_authenticated/$bot/planos'
     | '/_authenticated/$bot/usuarios'
+    | '/_authenticated/painel/bots'
+    | '/_authenticated/painel/config'
+    | '/_authenticated/painel/dashboard'
+    | '/_authenticated/painel/perfil'
     | '/api/admin/image-bot-media/$id'
     | '/api/public/broadcasts/run'
     | '/api/public/media/$'
@@ -371,12 +435,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBotsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/painel': {
+      id: '/_authenticated/painel'
+      path: '/painel'
+      fullPath: '/painel'
+      preLoaderRoute: typeof AuthenticatedPainelRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/$bot': {
       id: '/_authenticated/$bot'
       path: '/$bot'
       fullPath: '/$bot'
       preLoaderRoute: typeof AuthenticatedBotRouteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/painel/perfil': {
+      id: '/_authenticated/painel/perfil'
+      path: '/perfil'
+      fullPath: '/painel/perfil'
+      preLoaderRoute: typeof AuthenticatedPainelPerfilRouteImport
+      parentRoute: typeof AuthenticatedPainelRouteRoute
+    }
+    '/_authenticated/painel/dashboard': {
+      id: '/_authenticated/painel/dashboard'
+      path: '/dashboard'
+      fullPath: '/painel/dashboard'
+      preLoaderRoute: typeof AuthenticatedPainelDashboardRouteImport
+      parentRoute: typeof AuthenticatedPainelRouteRoute
+    }
+    '/_authenticated/painel/config': {
+      id: '/_authenticated/painel/config'
+      path: '/config'
+      fullPath: '/painel/config'
+      preLoaderRoute: typeof AuthenticatedPainelConfigRouteImport
+      parentRoute: typeof AuthenticatedPainelRouteRoute
+    }
+    '/_authenticated/painel/bots': {
+      id: '/_authenticated/painel/bots'
+      path: '/bots'
+      fullPath: '/painel/bots'
+      preLoaderRoute: typeof AuthenticatedPainelBotsRouteImport
+      parentRoute: typeof AuthenticatedPainelRouteRoute
     }
     '/_authenticated/$bot/usuarios': {
       id: '/_authenticated/$bot/usuarios'
@@ -542,13 +641,35 @@ const AuthenticatedBotRouteRouteWithChildren =
     AuthenticatedBotRouteRouteChildren,
   )
 
+interface AuthenticatedPainelRouteRouteChildren {
+  AuthenticatedPainelBotsRoute: typeof AuthenticatedPainelBotsRoute
+  AuthenticatedPainelConfigRoute: typeof AuthenticatedPainelConfigRoute
+  AuthenticatedPainelDashboardRoute: typeof AuthenticatedPainelDashboardRoute
+  AuthenticatedPainelPerfilRoute: typeof AuthenticatedPainelPerfilRoute
+}
+
+const AuthenticatedPainelRouteRouteChildren: AuthenticatedPainelRouteRouteChildren =
+  {
+    AuthenticatedPainelBotsRoute: AuthenticatedPainelBotsRoute,
+    AuthenticatedPainelConfigRoute: AuthenticatedPainelConfigRoute,
+    AuthenticatedPainelDashboardRoute: AuthenticatedPainelDashboardRoute,
+    AuthenticatedPainelPerfilRoute: AuthenticatedPainelPerfilRoute,
+  }
+
+const AuthenticatedPainelRouteRouteWithChildren =
+  AuthenticatedPainelRouteRoute._addFileChildren(
+    AuthenticatedPainelRouteRouteChildren,
+  )
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedBotRouteRoute: typeof AuthenticatedBotRouteRouteWithChildren
+  AuthenticatedPainelRouteRoute: typeof AuthenticatedPainelRouteRouteWithChildren
   AuthenticatedBotsRoute: typeof AuthenticatedBotsRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBotRouteRoute: AuthenticatedBotRouteRouteWithChildren,
+  AuthenticatedPainelRouteRoute: AuthenticatedPainelRouteRouteWithChildren,
   AuthenticatedBotsRoute: AuthenticatedBotsRoute,
 }
 

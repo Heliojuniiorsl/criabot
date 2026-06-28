@@ -10,12 +10,16 @@ import { controlManagedBot, getManagedBotToken, listManagedBots } from "@/lib/bo
 import { getTelegramGroups, localDb, sqlite, upsertTelegramGroup } from "@/lib/database.server";
 import { getEnvSettingsForPanel, saveEnvSettingsFromPanel } from "@/lib/env-settings.server";
 import {
-  createSalesBotClone,
-  findSalesBotCloneByKey,
-  findSalesBotCloneByUsername,
-  salesBotCloneRuntime,
+  createManagedSalesBotRecord,
+  findManagedSalesBotByKey,
+  findManagedSalesBotByUsername,
+  managedSalesBotRuntime,
 } from "@/lib/sales-bot-registry.server";
-import { enterSalesBotRuntime, getActiveSalesBotToken } from "@/lib/sales-bot-runtime.server";
+import {
+  enterSalesBotRuntime,
+  getActiveSalesBotToken,
+  runWithSalesBotRuntime,
+} from "@/lib/sales-bot-runtime.server";
 import {
   deleteImageBotMediaMany,
   deleteImageBotMedia,
@@ -53,6 +57,7 @@ import {
 import { recordCustomerEvent } from "@/lib/sales.server";
 import {
   getBotInfoWithToken,
+  getBotPhotoDataUrlWithToken,
   getChatMemberCountWithToken,
   getChatMemberWithToken,
   leaveChatWithToken,
@@ -67,12 +72,12 @@ async function admin() {
   try {
     const routeUsername = new URL(sourceUrl).pathname.split("/").filter(Boolean)[0];
     if (routeUsername) {
-      const clone = findSalesBotCloneByUsername(routeUsername);
-      if (clone) {
-        if (session.role !== "admin" && clone.owner_account_id !== session.id) {
+      const bot = findManagedSalesBotByUsername(routeUsername);
+      if (bot) {
+        if (session.role !== "admin" && bot.owner_account_id !== session.id) {
           throw new Error("Esse bot nao pertence a sua conta");
         }
-        enterSalesBotRuntime(salesBotCloneRuntime(clone));
+        enterSalesBotRuntime(managedSalesBotRuntime(bot));
         return localDb;
       }
     }
@@ -178,6 +183,91 @@ export const getDashboard = createServerFn({ method: "GET" }).handler(async () =
 /* ---------------------------------- Bots --------------------------------- */
 
 const managedBotKey = z.string().min(1).max(100);
+const telegramBotToken = z
+  .string()
+  .trim()
+  .min(20)
+  .max(200)
+  .regex(/^\d{6,14}:[A-Za-z0-9_-]{30,}$/, "Token do Telegram em formato invalido");
+const optionalTrimmedText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .optional()
+    .nullable()
+    .transform((value) => value || null);
+
+const initialBotSetupSchema = z.object({
+  vip_chat_id: z.coerce
+    .number()
+    .int()
+    .negative("Informe o ID negativo do grupo ou canal VIP")
+    .optional()
+    .nullable(),
+  welcome_message: optionalTrimmedText(4000),
+  plan_name: optionalTrimmedText(120),
+  plan_button_label: optionalTrimmedText(80),
+  plan_detail_message: optionalTrimmedText(4000),
+  plan_price: z.coerce.number().min(0).max(1000000).optional().nullable(),
+  plan_access_type: z.enum(["days", "lifetime"]).default("days"),
+  plan_duration_days: z.coerce.number().int().min(1).max(3650).default(30),
+});
+
+type InitialBotSetup = z.infer<typeof initialBotSetupSchema>;
+
+function setupNewSalesBotDatabase(
+  botRuntime: ReturnType<typeof managedSalesBotRuntime>,
+  setup: InitialBotSetup,
+) {
+  return runWithSalesBotRuntime(botRuntime, () => {
+    const now = new Date().toISOString();
+    const welcomeMessage = setup.welcome_message?.trim();
+    if (welcomeMessage) {
+      sqlite
+        .prepare("UPDATE bot_settings SET welcome_message = ?, updated_at = ? WHERE id = ?")
+        .run(welcomeMessage, now, "00000000-0000-4000-8000-000000000001");
+    }
+
+    if (!setup.plan_name || setup.plan_price == null || setup.vip_chat_id == null) return null;
+
+    const planId = randomUUID();
+    const planName = setup.plan_name.trim();
+    const accessType = setup.plan_access_type ?? "days";
+    const durationDays = accessType === "lifetime" ? 1 : setup.plan_duration_days;
+    const detailMessage =
+      setup.plan_detail_message?.trim() || `{{nome}}\n\nAcesso: {{validade}}\nValor: {{preco}}`;
+
+    sqlite
+      .prepare(
+        `INSERT INTO plans
+          (id, name, description, button_label, button_color, detail_message, sort_order,
+           description_mode, access_chat_id, access_type, price, duration_days,
+           renewal_enabled, is_active, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        planId,
+        planName,
+        detailMessage,
+        setup.plan_button_label?.trim() || null,
+        "default",
+        detailMessage,
+        10,
+        "custom",
+        setup.vip_chat_id,
+        accessType,
+        setup.plan_price,
+        durationDays,
+        accessType === "lifetime" ? 0 : 1,
+        1,
+        now,
+        now,
+      );
+
+    return { plan_id: planId };
+  });
+}
 
 export const getManagedBots = createServerFn({ method: "GET" }).handler(async () => {
   const session = requireAccountSession();
@@ -201,32 +291,119 @@ export const runManagedBotAction = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const session = requireAccountSession();
     if (session.role !== "admin") {
-      const clone = findSalesBotCloneByKey(data.key);
-      if (!clone || clone.owner_account_id !== session.id) {
+      const bot = findManagedSalesBotByKey(data.key);
+      if (!bot || bot.owner_account_id !== session.id) {
         throw new Error("Esse bot nao pertence a sua conta");
       }
     }
     return controlManagedBot(data.key, data.action);
   });
 
-export const createManagedSalesBot = createServerFn({ method: "POST" })
+export const validateManagedSalesBotToken = createServerFn({ method: "POST" })
   .validator(
     z.object({
-      token: z.string().trim().min(20).max(200),
+      token: telegramBotToken,
     }),
   )
   .handler(async ({ data }) => {
+    requireAccountSession();
+    const token = data.token.trim();
+
+    try {
+      const info = await getBotInfoWithToken(token);
+      const username = String(info.username ?? "").trim();
+      if (!username) {
+        throw new Error("Esse bot nao possui @username. Configure o username no BotFather.");
+      }
+
+      const existing = findManagedSalesBotByUsername(username);
+      if (existing) {
+        throw new Error(`O bot @${username.replace(/^@/, "").toLowerCase()} ja esta cadastrado.`);
+      }
+
+      const photo = await getBotPhotoDataUrlWithToken(token, Number(info.id), 3_000).catch(
+        () => null,
+      );
+
+      return {
+        ok: true,
+        bot: {
+          telegram_id: String(info.id),
+          username: username.replace(/^@/, "").toLowerCase(),
+          display_name: String(info.first_name || username),
+          photo_data_url: photo,
+        },
+      };
+    } catch (error) {
+      const rawMessage = error instanceof Error ? error.message : "Falha ao consultar o Telegram";
+      const invalidToken = /unauthorized|token|401/i.test(rawMessage);
+      throw new Error(
+        invalidToken
+          ? "Token invalido. Copie novamente o token completo enviado pelo BotFather."
+          : rawMessage,
+      );
+    }
+  });
+
+export const verifyManagedSalesBotVipChat = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      token: telegramBotToken,
+      vip_chat_id: z.coerce.number().int().negative("Informe o ID negativo do grupo ou canal VIP"),
+    }),
+  )
+  .handler(async ({ data }) => {
+    requireAccountSession();
+    const token = data.token.trim();
+    const info = await getBotInfoWithToken(token);
+    const member = await getChatMemberWithToken(token, data.vip_chat_id, Number(info.id)).catch(
+      (error) => {
+        const message = error instanceof Error ? error.message : "Falha ao verificar o grupo VIP";
+        throw new Error(
+          message.includes("chat not found") || message.includes("member not found")
+            ? "Nao encontrei esse grupo/canal para este bot. Confira se o bot foi adicionado e se o ID esta correto."
+            : message,
+        );
+      },
+    );
+    const botIsAdmin = member.status === "administrator" || member.status === "creator";
+    if (!botIsAdmin) {
+      throw new Error("O bot foi encontrado, mas precisa ser administrador do grupo/canal VIP.");
+    }
+    const memberCount = await getChatMemberCountWithToken(token, data.vip_chat_id).catch(
+      () => null,
+    );
+
+    return {
+      ok: true,
+      chat_id: data.vip_chat_id,
+      bot_status: member.status,
+      member_count: memberCount,
+    };
+  });
+
+export const createManagedSalesBot = createServerFn({ method: "POST" })
+  .validator(
+    z
+      .object({
+        token: telegramBotToken,
+      })
+      .merge(initialBotSetupSchema),
+  )
+  .handler(async ({ data }) => {
     const session = requireAccountSession();
-    const clone = await createSalesBotClone({
+    const bot = await createManagedSalesBotRecord({
       token: data.token,
       ownerAccountId: session.id,
     });
+    const setupResult = setupNewSalesBotDatabase(managedSalesBotRuntime(bot), data);
     return {
       ok: true,
+      setup: setupResult,
       bot: {
-        key: clone.key,
-        username: clone.username,
-        display_name: clone.display_name,
+        key: bot.key,
+        username: bot.username,
+        display_name: bot.display_name,
       },
     };
   });

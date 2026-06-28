@@ -160,9 +160,9 @@ describe("gerenciador de bots", () => {
 
     expect(bots).toContainEqual(
       expect.objectContaining({
-        key: "sales-clone:danimiller-bot",
+        key: "sales-bot:danimiller-bot",
         kind: "sales",
-        is_clone: true,
+        is_custom: true,
         display_name: "Dani Miller",
         username: "danimiller_bot",
         panel_path: "/danimiller_bot/dashboard",

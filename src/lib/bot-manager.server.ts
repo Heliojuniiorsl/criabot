@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
 
 import {
-  findSalesBotCloneByKey,
-  listSalesBotClones,
-  type SalesBotClone,
+  findManagedSalesBotByKey,
+  listManagedSalesBots,
+  type ManagedSalesBot,
 } from "@/lib/sales-bot-registry.server";
 import {
   deleteWebhookWithToken,
@@ -27,7 +27,7 @@ type ManagedBotConfig = {
   webhookPath: string;
   allowedUpdates: string[];
   commands: { command: string; description: string }[];
-  isClone: boolean;
+  isCustom: boolean;
 };
 
 const salesUpdates = [
@@ -65,7 +65,7 @@ function staticConfigs(): ManagedBotConfig[] {
       webhookPath: "/api/public/telegram/webhook",
       allowedUpdates: salesUpdates,
       commands: salesBotCommands,
-      isClone: false,
+      isCustom: false,
     },
     {
       key: "images",
@@ -76,37 +76,37 @@ function staticConfigs(): ManagedBotConfig[] {
       webhookPath: "/api/public/telegram/image-webhook",
       allowedUpdates: imageUpdates,
       commands: imageBotCommands,
-      isClone: false,
+      isCustom: false,
     },
   ];
 }
 
-function cloneConfig(clone: SalesBotClone): ManagedBotConfig {
+function customSalesBotConfig(bot: ManagedSalesBot): ManagedBotConfig {
   return {
-    key: clone.key,
+    key: bot.key,
     kind: "sales",
-    token: clone.token,
-    tokenLabel: `token de @${clone.username}`,
-    fallbackName: clone.display_name,
+    token: bot.token,
+    tokenLabel: `token de @${bot.username}`,
+    fallbackName: bot.display_name,
     webhookPath: "/api/public/telegram/webhook",
     allowedUpdates: salesUpdates,
     commands: salesBotCommands,
-    isClone: true,
+    isCustom: true,
   };
 }
 
 function allConfigs(options: { ownerAccountId?: string; includeStatic?: boolean } = {}) {
   return [
     ...(options.includeStatic === false ? [] : staticConfigs()),
-    ...listSalesBotClones({ ownerAccountId: options.ownerAccountId }).map(cloneConfig),
+    ...listManagedSalesBots({ ownerAccountId: options.ownerAccountId }).map(customSalesBotConfig),
   ];
 }
 
 function resolveConfig(key: ManagedBotKey) {
   const staticConfig = staticConfigs().find((config) => config.key === key);
   if (staticConfig) return staticConfig;
-  const clone = findSalesBotCloneByKey(key);
-  return clone ? cloneConfig(clone) : null;
+  const bot = findManagedSalesBotByKey(key);
+  return bot ? customSalesBotConfig(bot) : null;
 }
 
 function getPublicBaseUrl() {
@@ -155,7 +155,7 @@ export async function listManagedBots(
       const base = {
         key: config.key,
         kind: config.kind,
-        is_clone: config.isClone,
+        is_custom: config.isCustom,
         display_name: config.fallbackName,
         panel_path: null as string | null,
         configured: Boolean(token),

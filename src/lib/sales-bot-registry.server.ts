@@ -5,10 +5,10 @@ import { dirname, resolve } from "node:path";
 
 import { ensureSalesCloneDatabase } from "@/lib/database.server";
 import { resolveSalesDatabasePath } from "@/lib/paths.server";
-import { getBotInfoWithToken } from "@/lib/telegram.server";
 import type { SalesBotRuntime } from "@/lib/sales-bot-runtime.server";
+import { getBotInfoWithToken } from "@/lib/telegram.server";
 
-export type SalesBotClone = {
+export type ManagedSalesBot = {
   id: string;
   key: string;
   token: string;
@@ -29,45 +29,67 @@ const registryPath = resolve(
 mkdirSync(dirname(registryPath), { recursive: true });
 
 const registry = new Database(registryPath);
-const ensuredCloneDatabasePaths = new Set<string>();
-const deprecatedCloneUsernames = new Set(["bruninhabb_bot"]);
+const ensuredManagedDatabasePaths = new Set<string>();
+const deprecatedManagedUsernames = new Set(["bruninhabb_bot"]);
+const managedTable = "managed_sales_bots";
+const legacyCloneTable = "sales_bot_clones";
+
 registry.pragma("journal_mode = WAL");
 registry.pragma("busy_timeout = 15000");
-registry.exec(`
-  CREATE TABLE IF NOT EXISTS sales_bot_clones (
-    id TEXT PRIMARY KEY,
-    token TEXT NOT NULL UNIQUE,
-    telegram_id TEXT NOT NULL UNIQUE,
-    username TEXT NOT NULL UNIQUE COLLATE NOCASE,
-    display_name TEXT NOT NULL,
-    database_path TEXT NOT NULL UNIQUE,
-    owner_account_id TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-  )
-`);
 
-const cloneColumns = registry.prepare('PRAGMA table_info("sales_bot_clones")').all() as Array<{
-  name: string;
-}>;
-if (!cloneColumns.some((column) => column.name === "owner_account_id")) {
-  registry.exec('ALTER TABLE "sales_bot_clones" ADD COLUMN "owner_account_id" TEXT');
+function createRegistryTable(tableName: string) {
+  registry.exec(`
+    CREATE TABLE IF NOT EXISTS ${tableName} (
+      id TEXT PRIMARY KEY,
+      token TEXT NOT NULL UNIQUE,
+      telegram_id TEXT NOT NULL UNIQUE,
+      username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      display_name TEXT NOT NULL,
+      database_path TEXT NOT NULL UNIQUE,
+      owner_account_id TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
 }
 
-registry
-  .prepare(
-    `DELETE FROM sales_bot_clones
-     WHERE lower(username) IN (${Array.from(deprecatedCloneUsernames)
-       .map(() => "?")
-       .join(", ")})`,
-  )
-  .run(...deprecatedCloneUsernames);
+function ensureOwnerColumn(tableName: string) {
+  const columns = registry.prepare(`PRAGMA table_info("${tableName}")`).all() as Array<{
+    name: string;
+  }>;
+  if (!columns.some((column) => column.name === "owner_account_id")) {
+    registry.exec(`ALTER TABLE "${tableName}" ADD COLUMN "owner_account_id" TEXT`);
+  }
+}
+
+createRegistryTable(legacyCloneTable);
+createRegistryTable(managedTable);
+ensureOwnerColumn(legacyCloneTable);
+ensureOwnerColumn(managedTable);
+
+registry.exec(`
+  INSERT OR IGNORE INTO ${managedTable}
+    (id, token, telegram_id, username, display_name, database_path, owner_account_id, created_at, updated_at)
+  SELECT id, token, telegram_id, username, display_name, database_path, owner_account_id, created_at, updated_at
+  FROM ${legacyCloneTable}
+`);
+
+for (const tableName of [legacyCloneTable, managedTable]) {
+  registry
+    .prepare(
+      `DELETE FROM ${tableName}
+       WHERE lower(username) IN (${Array.from(deprecatedManagedUsernames)
+         .map(() => "?")
+         .join(", ")})`,
+    )
+    .run(...deprecatedManagedUsernames);
+}
 
 export function closeSalesBotRegistry() {
   if (registry.open) registry.close();
 }
 
-function defaultCloneDatabasePath(id: string) {
+function defaultManagedBotDatabasePath(id: string) {
   return resolve(dirname(primaryDatabasePath), "sales-bots", `${id}.sqlite`);
 }
 
@@ -79,8 +101,8 @@ function isWindowsAbsolutePath(value: string) {
   return /^[A-Za-z]:[\\/]/.test(value);
 }
 
-function resolveCloneDatabasePath(id: string, storedPath: string) {
-  const fallbackPath = defaultCloneDatabasePath(id);
+function resolveManagedBotDatabasePath(id: string, storedPath: string) {
+  const fallbackPath = defaultManagedBotDatabasePath(id);
   const trimmedPath = storedPath.trim();
   if (!trimmedPath || isWindowsAbsolutePath(trimmedPath)) return fallbackPath;
 
@@ -91,38 +113,38 @@ function resolveCloneDatabasePath(id: string, storedPath: string) {
   return trimmedPath.endsWith(`${id}.sqlite`) ? fallbackPath : resolvedPath;
 }
 
-function ensureCloneDatabase(databasePath: string) {
-  if (ensuredCloneDatabasePaths.has(databasePath)) return;
+function ensureManagedBotDatabase(databasePath: string) {
+  if (ensuredManagedDatabasePaths.has(databasePath)) return;
   ensureSalesCloneDatabase(databasePath);
-  ensuredCloneDatabasePaths.add(databasePath);
+  ensuredManagedDatabasePaths.add(databasePath);
 }
 
-function mapClone(row: Omit<SalesBotClone, "key">): SalesBotClone {
-  const databasePath = resolveCloneDatabasePath(row.id, row.database_path);
+function mapManagedBot(row: Omit<ManagedSalesBot, "key">): ManagedSalesBot {
+  const databasePath = resolveManagedBotDatabasePath(row.id, row.database_path);
   if (databasePath !== row.database_path) {
     try {
       registry
-        .prepare("UPDATE sales_bot_clones SET database_path = ?, updated_at = ? WHERE id = ?")
+        .prepare(`UPDATE ${managedTable} SET database_path = ?, updated_at = ? WHERE id = ?`)
         .run(databasePath, new Date().toISOString(), row.id);
     } catch (error) {
-      console.warn(`[sales-bot-registry:${row.id}] falha ao atualizar caminho do banco`, error);
+      console.warn(`[managed-sales-bot:${row.id}] falha ao atualizar caminho do banco`, error);
     }
   }
-  ensureCloneDatabase(databasePath);
-  return { ...row, database_path: databasePath, key: `sales-clone:${row.id}` };
+  ensureManagedBotDatabase(databasePath);
+  return { ...row, database_path: databasePath, key: `sales-bot:${row.id}` };
 }
 
-function listEnvironmentSalesBotClones(): SalesBotClone[] {
+function listEnvironmentManagedSalesBots(): ManagedSalesBot[] {
   const token = process.env.DANI_MILLER_BOT_TOKEN?.trim();
   if (!token) return [];
   const id = "danimiller-bot";
-  const databasePath = defaultCloneDatabasePath(id);
-  ensureCloneDatabase(databasePath);
+  const databasePath = defaultManagedBotDatabasePath(id);
+  ensureManagedBotDatabase(databasePath);
   const now = new Date().toISOString();
   return [
     {
       id,
-      key: `sales-clone:${id}`,
+      key: `sales-bot:${id}`,
       token,
       telegram_id: "env:DANI_MILLER_BOT_TOKEN",
       username: "danimiller_bot",
@@ -135,41 +157,44 @@ function listEnvironmentSalesBotClones(): SalesBotClone[] {
   ];
 }
 
-export function listSalesBotClones(
+export function listManagedSalesBots(
   options: { ownerAccountId?: string; includeEnv?: boolean } = {},
 ) {
-  const envClones = options.ownerAccountId
+  const envBots = options.ownerAccountId
     ? []
     : options.includeEnv === false
       ? []
-      : listEnvironmentSalesBotClones();
-  const envUsernames = new Set(envClones.map((clone) => normalizeUsername(clone.username)));
+      : listEnvironmentManagedSalesBots();
+  const envUsernames = new Set(envBots.map((bot) => normalizeUsername(bot.username)));
   const rows = (
     options.ownerAccountId
       ? registry
           .prepare(
-            "SELECT * FROM sales_bot_clones WHERE owner_account_id = ? ORDER BY created_at ASC",
+            `SELECT * FROM ${managedTable} WHERE owner_account_id = ? ORDER BY created_at ASC`,
           )
           .all(options.ownerAccountId)
-      : registry.prepare("SELECT * FROM sales_bot_clones ORDER BY created_at ASC").all()
-  ) as Array<Omit<SalesBotClone, "key">>;
-  const databaseClones = rows
-    .filter((row) => !deprecatedCloneUsernames.has(normalizeUsername(row.username)))
+      : registry.prepare(`SELECT * FROM ${managedTable} ORDER BY created_at ASC`).all()
+  ) as Array<Omit<ManagedSalesBot, "key">>;
+  const databaseBots = rows
+    .filter((row) => !deprecatedManagedUsernames.has(normalizeUsername(row.username)))
     .filter((row) => !envUsernames.has(normalizeUsername(row.username)))
-    .map(mapClone);
-  return [...envClones, ...databaseClones];
+    .map(mapManagedBot);
+  return [...envBots, ...databaseBots];
 }
 
-export function findSalesBotCloneById(id: string) {
-  const envClone = listEnvironmentSalesBotClones().find((clone) => clone.id === id);
-  if (envClone) return envClone;
-  const row = registry.prepare("SELECT * FROM sales_bot_clones WHERE id = ?").get(id) as
-    | Omit<SalesBotClone, "key">
+export function findManagedSalesBotById(id: string) {
+  const envBot = listEnvironmentManagedSalesBots().find((bot) => bot.id === id);
+  if (envBot) return envBot;
+  const row = registry.prepare(`SELECT * FROM ${managedTable} WHERE id = ?`).get(id) as
+    | Omit<ManagedSalesBot, "key">
     | undefined;
-  return row ? mapClone(row) : null;
+  return row ? mapManagedBot(row) : null;
 }
 
-export async function createSalesBotClone(input: { token: string; ownerAccountId: string }) {
+export async function createManagedSalesBotRecord(input: {
+  token: string;
+  ownerAccountId: string;
+}) {
   const token = input.token.trim();
   if (!token) throw new Error("Informe o token do bot");
 
@@ -178,23 +203,23 @@ export async function createSalesBotClone(input: { token: string; ownerAccountId
   if (!username) throw new Error("Esse bot nao possui username configurado no Telegram");
 
   const normalizedUsername = normalizeUsername(username);
-  const existingByUsername = findSalesBotCloneByUsername(normalizedUsername);
+  const existingByUsername = findManagedSalesBotByUsername(normalizedUsername);
   if (existingByUsername) throw new Error(`O bot @${normalizedUsername} ja esta cadastrado`);
 
   const telegramId = String(info.id);
   const existingByTelegramId = registry
-    .prepare("SELECT id FROM sales_bot_clones WHERE telegram_id = ?")
+    .prepare(`SELECT id FROM ${managedTable} WHERE telegram_id = ?`)
     .get(telegramId);
   if (existingByTelegramId) throw new Error("Esse bot ja esta cadastrado");
 
   const id = randomUUID();
-  const databasePath = defaultCloneDatabasePath(id);
-  ensureCloneDatabase(databasePath);
+  const databasePath = defaultManagedBotDatabasePath(id);
+  ensureManagedBotDatabase(databasePath);
   const now = new Date().toISOString();
 
   registry
     .prepare(
-      `INSERT INTO sales_bot_clones
+      `INSERT INTO ${managedTable}
        (id, token, telegram_id, username, display_name, database_path, owner_account_id, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
@@ -210,33 +235,36 @@ export async function createSalesBotClone(input: { token: string; ownerAccountId
       now,
     );
 
-  return findSalesBotCloneById(id)!;
+  return findManagedSalesBotById(id)!;
 }
 
-export function findSalesBotCloneByKey(key: string) {
-  if (!key.startsWith("sales-clone:")) return null;
-  return findSalesBotCloneById(key.slice("sales-clone:".length));
+export function findManagedSalesBotByKey(key: string) {
+  if (key.startsWith("sales-bot:")) return findManagedSalesBotById(key.slice("sales-bot:".length));
+  if (key.startsWith("sales-clone:")) {
+    return findManagedSalesBotById(key.slice("sales-clone:".length));
+  }
+  return null;
 }
 
-export function findSalesBotCloneByUsername(username: string) {
+export function findManagedSalesBotByUsername(username: string) {
   const normalized = normalizeUsername(username);
-  const envClone = listEnvironmentSalesBotClones().find(
-    (clone) => normalizeUsername(clone.username) === normalized,
+  const envBot = listEnvironmentManagedSalesBots().find(
+    (bot) => normalizeUsername(bot.username) === normalized,
   );
-  if (envClone) return envClone;
+  if (envBot) return envBot;
   const row = registry
-    .prepare("SELECT * FROM sales_bot_clones WHERE username = ? COLLATE NOCASE")
-    .get(username.replace(/^@/, "")) as Omit<SalesBotClone, "key"> | undefined;
-  return row ? mapClone(row) : null;
+    .prepare(`SELECT * FROM ${managedTable} WHERE username = ? COLLATE NOCASE`)
+    .get(username.replace(/^@/, "")) as Omit<ManagedSalesBot, "key"> | undefined;
+  return row ? mapManagedBot(row) : null;
 }
 
-export function salesBotCloneRuntime(clone: SalesBotClone): SalesBotRuntime {
+export function managedSalesBotRuntime(bot: ManagedSalesBot): SalesBotRuntime {
   return {
-    id: clone.id,
-    key: clone.key,
-    token: clone.token,
-    databasePath: clone.database_path,
-    username: clone.username,
+    id: bot.id,
+    key: bot.key,
+    token: bot.token,
+    databasePath: bot.database_path,
+    username: bot.username,
     isPrimary: false,
   };
 }
@@ -264,10 +292,19 @@ export function resolveSalesBotRuntimeByWebhookSecret(receivedSecret: string) {
     } satisfies SalesBotRuntime;
   }
 
-  for (const clone of listSalesBotClones()) {
-    if (safeEqual(receivedSecret, webhookSecret(clone.token))) {
-      return salesBotCloneRuntime(clone);
+  for (const bot of listManagedSalesBots()) {
+    if (safeEqual(receivedSecret, webhookSecret(bot.token))) {
+      return managedSalesBotRuntime(bot);
     }
   }
   return null;
 }
+
+// Compatibilidade com pedidos, webhooks e bancos antigos que ainda guardam a palavra "clone".
+export type SalesBotClone = ManagedSalesBot;
+export const listSalesBotClones = listManagedSalesBots;
+export const findSalesBotCloneById = findManagedSalesBotById;
+export const createSalesBotClone = createManagedSalesBotRecord;
+export const findSalesBotCloneByKey = findManagedSalesBotByKey;
+export const findSalesBotCloneByUsername = findManagedSalesBotByUsername;
+export const salesBotCloneRuntime = managedSalesBotRuntime;

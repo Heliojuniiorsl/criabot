@@ -1431,7 +1431,7 @@ if (
           { runDueBroadcasts, runDueGroupBroadcasts },
           { runDueImageBotGroupAutomations },
           { runImageBotPremiumExpiryReminders },
-          { listSalesBotClones, salesBotCloneRuntime },
+          { listManagedSalesBots, managedSalesBotRuntime },
           { enterSalesBotRuntime, runWithSalesBotRuntime },
         ]) => {
           enterSalesBotRuntime(null);
@@ -1444,11 +1444,11 @@ if (
             ]);
           return Promise.all([
             runSalesAutomations(),
-            ...listSalesBotClones().map((clone) =>
+            ...listManagedSalesBots().map((bot) =>
               Promise.resolve(
-                runWithSalesBotRuntime(salesBotCloneRuntime(clone), runSalesAutomations),
+                runWithSalesBotRuntime(managedSalesBotRuntime(bot), runSalesAutomations),
               ).catch((error: unknown) => {
-                console.error(`[subscription-automation:${clone.username}]`, error);
+                console.error(`[subscription-automation:${bot.username}]`, error);
                 return null;
               }),
             ),

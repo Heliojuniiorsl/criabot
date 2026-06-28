@@ -3,7 +3,7 @@ import { createContext, useContext } from "react";
 export type ManagedBotPanel = {
   key: string;
   kind: "sales" | "images";
-  is_clone: boolean;
+  is_custom: boolean;
   display_name: string;
   username: string;
   photo_data_url: string | null;
