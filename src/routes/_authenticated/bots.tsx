@@ -196,6 +196,33 @@ function formatCriaBotUserName(user: CriaBotLinkedUser) {
   return `ID ${user.telegram_user_id}`;
 }
 
+function MiniTutorial({
+  title,
+  items,
+}: {
+  title: string;
+  items: Array<{ title: string; body: string }>;
+}) {
+  return (
+    <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4">
+      <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+        <ShieldCheck className="h-4 w-4" />
+        {title}
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        {items.map((item, index) => (
+          <div key={`${item.title}-${index}`} className="rounded-2xl bg-white/80 p-3 text-sm">
+            <p className="font-semibold">
+              {index + 1}. {item.title}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{item.body}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
   let timeout: ReturnType<typeof setTimeout>;
   const timeoutPromise = new Promise<never>((_, reject) => {
@@ -707,6 +734,24 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                       </h3>
                     </div>
 
+                    <MiniTutorial
+                      title="Antes de continuar"
+                      items={[
+                        {
+                          title: "Pegue o token",
+                          body: "Abra o @BotFather, crie ou escolha seu bot e copie o token completo no formato numero:chave.",
+                        },
+                        {
+                          title: "Cole no CriaBot",
+                          body: "Cole o token no campo abaixo. O site valida automaticamente e mostra nome, username e foto do bot.",
+                        },
+                        {
+                          title: "Vincule seu usuario",
+                          body: "Abra o bot oficial do CriaBot, toque em /start e volte ao site para continuar a criacao.",
+                        },
+                      ]}
+                    />
+
                     <div className="rounded-2xl border bg-white p-4 shadow-sm">
                       <div className="mb-4">
                         <div className="flex items-center gap-2 text-sm font-semibold text-primary">
@@ -935,6 +980,23 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                         apos o pagamento.
                       </p>
                     </div>
+                    <MiniTutorial
+                      title="Como adicionar o VIP"
+                      items={[
+                        {
+                          title: "Adicione o bot",
+                          body: "Coloque o bot que voce esta criando dentro do grupo ou canal VIP.",
+                        },
+                        {
+                          title: "Promova como admin",
+                          body: "No Telegram, deixe o bot como administrador para ele conseguir gerar convite de acesso.",
+                        },
+                        {
+                          title: "Cole o ID",
+                          body: "Use o ID negativo do grupo/canal, normalmente comecando por -100, e clique em verificar.",
+                        },
+                      ]}
+                    />
                     <div className="space-y-2">
                       <Label htmlFor="vip_chat_id">ID do grupo ou canal VIP</Label>
                       <Input
@@ -1078,6 +1140,23 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                         Essa mensagem aparece no /start e o plano ja fica ativo no bot.
                       </p>
                     </div>
+                    <MiniTutorial
+                      title="Como montar a primeira venda"
+                      items={[
+                        {
+                          title: "Mensagem inicial",
+                          body: "Escreva a chamada que aparece quando o cliente abre o bot com /start.",
+                        },
+                        {
+                          title: "Plano e botao",
+                          body: "Defina o nome do plano e, se quiser, um texto personalizado para o botao do Telegram.",
+                        },
+                        {
+                          title: "Preco e validade",
+                          body: "Escolha o valor e se o acesso sera por dias ou vitalicio. O Pix sera gerado nesse plano.",
+                        },
+                      ]}
+                    />
                     <div className="space-y-2">
                       <Label htmlFor="welcome_message">Mensagem inicial do bot</Label>
                       <Textarea
@@ -1169,6 +1248,23 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                         Confira tudo antes de criar. O banco separado sera criado automaticamente.
                       </p>
                     </div>
+                    <MiniTutorial
+                      title="Checklist final"
+                      items={[
+                        {
+                          title: "Bot validado",
+                          body: "Confirme se o nome e o @username batem com o bot certo do Telegram.",
+                        },
+                        {
+                          title: "VIP pronto",
+                          body: "Verifique se o bot esta como administrador no grupo ou canal que vai entregar acesso.",
+                        },
+                        {
+                          title: "Criar bot",
+                          body: "Ao finalizar, o CriaBot salva token, painel e banco separados para esse novo bot.",
+                        },
+                      ]}
+                    />
                     <div className="grid gap-3 text-sm">
                       <div className="rounded-2xl bg-muted/60 p-4">
                         <p className="text-xs font-semibold uppercase text-muted-foreground">Bot</p>
