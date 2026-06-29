@@ -5,6 +5,7 @@ import { dirname, resolve, sep } from "node:path";
 
 import { resolveSalesDatabasePath } from "@/lib/paths.server";
 import { getSalesBotRuntime } from "@/lib/sales-bot-runtime.server";
+import { getBotTokenFromStoreOrEnv } from "@/lib/bot-token-store.server";
 
 type Row = Record<string, any>;
 type QueryResult = { data: any; error: { message: string; code?: string } | null; count?: number };
@@ -897,7 +898,11 @@ class LocalQuery implements PromiseLike<QueryResult> {
 }
 
 function mediaSecret() {
-  return process.env.MEDIA_SIGNING_SECRET ?? process.env.TELEGRAM_BOT_TOKEN ?? "local-development";
+  return (
+    process.env.MEDIA_SIGNING_SECRET ??
+    getBotTokenFromStoreOrEnv("sales", "TELEGRAM_BOT_TOKEN") ??
+    "local-development"
+  );
 }
 
 export function resolveMediaPath(path: string) {
@@ -1446,9 +1451,13 @@ const schedulerGlobal = globalThis as typeof globalThis & {
   __botVendasSubscriptionScheduler?: ReturnType<typeof setInterval>;
 };
 
+const runningBuild =
+  process.env.npm_lifecycle_event?.startsWith("build") ||
+  process.argv.some((argument) => argument.includes("vite"));
+
 if (
   process.env.NODE_ENV !== "test" &&
-  (process.env.TELEGRAM_BOT_TOKEN || process.env.IMAGE_BOT_TOKEN) &&
+  !runningBuild &&
   !schedulerGlobal.__botVendasSubscriptionScheduler
 ) {
   const intervalMinutes = Math.max(1, Number(process.env.AUTOMATION_INTERVAL_MINUTES ?? 1));

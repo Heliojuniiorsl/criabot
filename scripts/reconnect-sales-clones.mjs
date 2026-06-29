@@ -7,10 +7,6 @@ const publicUrl = String(process.argv[2] ?? "").replace(/\/$/, "");
 if (!publicUrl.startsWith("https://")) process.exit(0);
 
 const clones = [];
-if (process.env.DANI_MILLER_BOT_TOKEN?.trim()) {
-  clones.push({ username: "danimiller_bot", token: process.env.DANI_MILLER_BOT_TOKEN.trim() });
-}
-const envUsernames = new Set(clones.map((clone) => clone.username.toLowerCase()));
 const deprecatedUsernames = new Set(["bruninhabb_bot"]);
 const salesBotCommands = [
   { command: "start", description: "Abrir planos e ofertas" },
@@ -50,16 +46,33 @@ const registryPath = resolve(
 );
 if (existsSync(registryPath)) {
   const registry = new Database(registryPath, { readonly: true });
-  const table = registry
+  const managedTable = registry
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'managed_sales_bots'")
+    .get();
+  if (managedTable) {
+    clones.push(
+      ...registry
+        .prepare("SELECT username, token FROM managed_sales_bots")
+        .all()
+        .filter((clone) => !deprecatedUsernames.has(String(clone.username).toLowerCase())),
+    );
+  }
+  const legacyTable = registry
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'sales_bot_clones'")
     .get();
-  if (table) {
+  if (legacyTable) {
+    const seen = new Set(clones.map((clone) => String(clone.username).toLowerCase()));
     clones.push(
       ...registry
         .prepare("SELECT username, token FROM sales_bot_clones")
         .all()
         .filter((clone) => !deprecatedUsernames.has(String(clone.username).toLowerCase()))
-        .filter((clone) => !envUsernames.has(String(clone.username).toLowerCase())),
+        .filter((clone) => {
+          const username = String(clone.username).toLowerCase();
+          if (seen.has(username)) return false;
+          seen.add(username);
+          return true;
+        }),
     );
   }
   registry.close();

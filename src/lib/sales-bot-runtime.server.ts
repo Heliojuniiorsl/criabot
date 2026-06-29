@@ -1,5 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
+import { getBotTokenFromStoreOrEnv } from "@/lib/bot-token-store.server";
+
 export type SalesBotRuntime = {
   id: string;
   key: string;
@@ -28,7 +30,7 @@ export function runWithSalesBotRuntime<T>(
 }
 
 export function getActiveSalesBotToken() {
-  return getSalesBotRuntime()?.token ?? process.env.TELEGRAM_BOT_TOKEN?.trim() ?? null;
+  return getSalesBotRuntime()?.token ?? getBotTokenFromStoreOrEnv("sales", "TELEGRAM_BOT_TOKEN");
 }
 
 export function getActiveSalesBotPublicBaseUrl() {

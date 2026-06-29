@@ -44,6 +44,77 @@ function Read-EnvFile($Path) {
   return $values
 }
 
+function Get-ProjectBotToken($Key, $EnvName, $EnvValues) {
+  $envToken = ""
+  if ($EnvValues.ContainsKey($EnvName)) {
+    $envToken = $EnvValues[$EnvName]
+  }
+
+  $databasePath = "data/botvendassl.sqlite"
+  if ($EnvValues.ContainsKey("DATABASE_PATH") -and ![string]::IsNullOrWhiteSpace($EnvValues["DATABASE_PATH"])) {
+    $databasePath = $EnvValues["DATABASE_PATH"]
+  }
+
+  $registryPath = ""
+  if ($EnvValues.ContainsKey("BOT_REGISTRY_PATH")) {
+    $registryPath = $EnvValues["BOT_REGISTRY_PATH"]
+  }
+
+  $script = @'
+const Database = require("better-sqlite3");
+const fs = require("node:fs");
+const path = require("node:path");
+
+const workspace = process.argv[1];
+const key = process.argv[2];
+const databasePathArg = process.argv[3] || "data/botvendassl.sqlite";
+const registryPathArg = process.argv[4] || "";
+const envToken = (process.argv[5] || "").trim();
+const databasePath = path.isAbsolute(databasePathArg)
+  ? databasePathArg
+  : path.resolve(workspace, databasePathArg);
+const registryPath = registryPathArg
+  ? path.resolve(workspace, registryPathArg)
+  : path.resolve(path.dirname(databasePath), "bot-registry.sqlite");
+
+fs.mkdirSync(path.dirname(registryPath), { recursive: true });
+const db = new Database(registryPath);
+try {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS bot_token_store (
+      key TEXT PRIMARY KEY,
+      token TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+  const row = db.prepare("SELECT token FROM bot_token_store WHERE key = ?").get(key);
+  if (row?.token) {
+    process.stdout.write(String(row.token).trim());
+    process.exit(0);
+  }
+  if (envToken) {
+    db.prepare(`
+      INSERT INTO bot_token_store (key, token, updated_at)
+      VALUES (?, ?, ?)
+      ON CONFLICT(key) DO UPDATE SET
+        token = excluded.token,
+        updated_at = excluded.updated_at
+    `).run(key, envToken, new Date().toISOString());
+    process.stdout.write(envToken);
+  }
+} finally {
+  db.close();
+}
+'@
+
+  try {
+    return ((& node -e $script $Workspace $Key $databasePath $registryPath $envToken) -join "").Trim()
+  } catch {
+    Write-Warning "Nao consegui ler o token salvo de $Key: $($_.Exception.Message)"
+    return $envToken
+  }
+}
+
 function Set-EnvValue($Path, $Key, $Value) {
   $lines = @()
   if (Test-Path -LiteralPath $Path) {
@@ -159,7 +230,7 @@ function ConvertTo-Base64UrlSha256($Text) {
 
 function Set-TelegramWebhook($Label, $Token, $Namespace, $Url, $AllowedUpdates) {
   if ([string]::IsNullOrWhiteSpace($Token)) {
-    Write-Warning "$Label sem token no .env; pulando webhook."
+    Write-Warning "$Label sem token salvo; pulando webhook."
     return
   }
 
@@ -255,6 +326,8 @@ if (!(Wait-ForHttp $publicUrl 60)) {
 if (!$SkipWebhooks) {
   Write-Step "Reconectando webhooks dos bots"
   $envValues = Read-EnvFile $EnvPath
+  $salesBotToken = Get-ProjectBotToken "sales" "TELEGRAM_BOT_TOKEN" $envValues
+  $imageBotToken = Get-ProjectBotToken "images" "IMAGE_BOT_TOKEN" $envValues
   $criaBotToken = $envValues["CRIABOT_TOKEN"]
   if ([string]::IsNullOrWhiteSpace($criaBotToken)) {
     $criaBotToken = $envValues["SITE_BOT_TOKEN"]
@@ -286,17 +359,17 @@ if (!$SkipWebhooks) {
     @("message")
   Set-TelegramCommandsMenu "CriaBot oficial" $criaBotToken $siteCommands
   Set-TelegramWebhook "Bot de vendas" `
-    $envValues["TELEGRAM_BOT_TOKEN"] `
+    $salesBotToken `
     "telegram-webhook" `
     "$publicUrl/api/public/telegram/webhook" `
     @("message", "channel_post", "callback_query", "my_chat_member", "chat_join_request")
-  Set-TelegramCommandsMenu "Bot de vendas" $envValues["TELEGRAM_BOT_TOKEN"] $salesCommands
+  Set-TelegramCommandsMenu "Bot de vendas" $salesBotToken $salesCommands
   Set-TelegramWebhook "UpMidias" `
-    $envValues["IMAGE_BOT_TOKEN"] `
+    $imageBotToken `
     "telegram-image-webhook" `
     "$publicUrl/api/public/telegram/image-webhook" `
     @("message", "callback_query", "my_chat_member")
-  Set-TelegramCommandsMenu "UpMidias" $envValues["IMAGE_BOT_TOKEN"] $imageCommands
+  Set-TelegramCommandsMenu "UpMidias" $imageBotToken $imageCommands
   & node (Join-Path $Workspace "scripts/reconnect-sales-clones.mjs") $publicUrl
   if ($LASTEXITCODE -ne 0) {
     Write-Warning "Nao foi possivel reconectar um ou mais clones do bot Bruna."

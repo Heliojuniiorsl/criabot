@@ -48,7 +48,7 @@ export function resolveTelegramFileReference(
 
 function getToken(): string {
   const token = getActiveSalesBotToken();
-  if (!token) throw new Error("TELEGRAM_BOT_TOKEN não configurado");
+  if (!token) throw new Error("Token do bot de vendas nao configurado");
   return token;
 }
 

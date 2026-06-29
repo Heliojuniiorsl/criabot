@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 let database: typeof import("./database.server");
+let botTokenStore: typeof import("./bot-token-store.server");
 let testDirectory: string;
 
 beforeAll(async () => {
@@ -12,10 +13,12 @@ beforeAll(async () => {
   vi.stubEnv("MEDIA_DIR", join(testDirectory, "media"));
   vi.resetModules();
   database = await import("./database.server");
+  botTokenStore = await import("./bot-token-store.server");
 });
 
 afterAll(() => {
   database.closeSalesBotCloneDatabases();
+  botTokenStore.closeBotTokenStore();
   database.sqlite.close();
   vi.unstubAllEnvs();
   rmSync(testDirectory, { recursive: true, force: true });

@@ -23,20 +23,6 @@ export type EnvSettingForPanel = EnvMeta & {
 const envPath = resolve(process.cwd(), ".env");
 
 const knownEnv: Record<string, EnvMeta> = {
-  TELEGRAM_BOT_TOKEN: {
-    label: "Token do bot Bruna",
-    description: "Token do bot de vendas. Depois de trocar, reinicie o bot em /bots.",
-    group: "bots",
-    secret: true,
-    reconnectBots: true,
-  },
-  IMAGE_BOT_TOKEN: {
-    label: "Token do UpMidias",
-    description: "Token do bot de imagens. Depois de trocar, reinicie o bot em /bots.",
-    group: "bots",
-    secret: true,
-    reconnectBots: true,
-  },
   PUBLIC_BASE_URL: {
     label: "URL publica",
     description: "URL HTTPS usada nos webhooks do Telegram e Mercado Pago.",
@@ -70,8 +56,8 @@ const sharedAllowedEnvKeys = [
 ] as const;
 
 const allowedEnvKeysByBot: Record<EnvPanelBotKey, readonly string[]> = {
-  sales: ["TELEGRAM_BOT_TOKEN", ...sharedAllowedEnvKeys],
-  images: ["IMAGE_BOT_TOKEN", ...sharedAllowedEnvKeys],
+  sales: [...sharedAllowedEnvKeys],
+  images: [...sharedAllowedEnvKeys],
 };
 
 const webhookPathsByBot: Record<EnvPanelBotKey, string> = {

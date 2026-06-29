@@ -4,6 +4,7 @@ import { existsSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 import { ensureSalesCloneDatabase } from "@/lib/database.server";
+import { closeBotTokenStore, getBotTokenFromStoreOrEnv } from "@/lib/bot-token-store.server";
 import { resolveSalesDatabasePath } from "@/lib/paths.server";
 import type { SalesBotRuntime } from "@/lib/sales-bot-runtime.server";
 import { getBotInfoWithToken } from "@/lib/telegram.server";
@@ -85,8 +86,50 @@ for (const tableName of [legacyCloneTable, managedTable]) {
     .run(...deprecatedManagedUsernames);
 }
 
+function migrateLegacyEnvManagedSalesBots() {
+  const token = process.env.DANI_MILLER_BOT_TOKEN?.trim();
+  if (!token) return;
+
+  const id = "danimiller-bot";
+  const username = "danimiller_bot";
+  const databasePath = defaultManagedBotDatabasePath(id);
+  ensureManagedBotDatabase(databasePath);
+  const now = new Date().toISOString();
+  const existing = registry
+    .prepare(`SELECT id FROM ${managedTable} WHERE id = ? OR username = ? COLLATE NOCASE`)
+    .get(id, username) as { id: string } | undefined;
+
+  if (existing) {
+    registry
+      .prepare(`UPDATE ${managedTable} SET token = ?, updated_at = ? WHERE id = ?`)
+      .run(token, now, existing.id);
+    return;
+  }
+
+  registry
+    .prepare(
+      `INSERT INTO ${managedTable}
+       (id, token, telegram_id, username, display_name, database_path, owner_account_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      id,
+      token,
+      "env:DANI_MILLER_BOT_TOKEN",
+      username,
+      "Dani Miller",
+      databasePath,
+      null,
+      now,
+      now,
+    );
+}
+
+migrateLegacyEnvManagedSalesBots();
+
 export function closeSalesBotRegistry() {
   if (registry.open) registry.close();
+  closeBotTokenStore();
 }
 
 function defaultManagedBotDatabasePath(id: string) {
@@ -134,38 +177,10 @@ function mapManagedBot(row: Omit<ManagedSalesBot, "key">): ManagedSalesBot {
   return { ...row, database_path: databasePath, key: `sales-bot:${row.id}` };
 }
 
-function listEnvironmentManagedSalesBots(): ManagedSalesBot[] {
-  const token = process.env.DANI_MILLER_BOT_TOKEN?.trim();
-  if (!token) return [];
-  const id = "danimiller-bot";
-  const databasePath = defaultManagedBotDatabasePath(id);
-  ensureManagedBotDatabase(databasePath);
-  const now = new Date().toISOString();
-  return [
-    {
-      id,
-      key: `sales-bot:${id}`,
-      token,
-      telegram_id: "env:DANI_MILLER_BOT_TOKEN",
-      username: "danimiller_bot",
-      display_name: "Dani Miller",
-      database_path: databasePath,
-      owner_account_id: null,
-      created_at: now,
-      updated_at: now,
-    },
-  ];
-}
-
 export function listManagedSalesBots(
   options: { ownerAccountId?: string; includeEnv?: boolean } = {},
 ) {
-  const envBots = options.ownerAccountId
-    ? []
-    : options.includeEnv === false
-      ? []
-      : listEnvironmentManagedSalesBots();
-  const envUsernames = new Set(envBots.map((bot) => normalizeUsername(bot.username)));
+  migrateLegacyEnvManagedSalesBots();
   const rows = (
     options.ownerAccountId
       ? registry
@@ -177,14 +192,12 @@ export function listManagedSalesBots(
   ) as Array<Omit<ManagedSalesBot, "key">>;
   const databaseBots = rows
     .filter((row) => !deprecatedManagedUsernames.has(normalizeUsername(row.username)))
-    .filter((row) => !envUsernames.has(normalizeUsername(row.username)))
     .map(mapManagedBot);
-  return [...envBots, ...databaseBots];
+  return databaseBots;
 }
 
 export function findManagedSalesBotById(id: string) {
-  const envBot = listEnvironmentManagedSalesBots().find((bot) => bot.id === id);
-  if (envBot) return envBot;
+  migrateLegacyEnvManagedSalesBots();
   const row = registry.prepare(`SELECT * FROM ${managedTable} WHERE id = ?`).get(id) as
     | Omit<ManagedSalesBot, "key">
     | undefined;
@@ -248,10 +261,7 @@ export function findManagedSalesBotByKey(key: string) {
 
 export function findManagedSalesBotByUsername(username: string) {
   const normalized = normalizeUsername(username);
-  const envBot = listEnvironmentManagedSalesBots().find(
-    (bot) => normalizeUsername(bot.username) === normalized,
-  );
-  if (envBot) return envBot;
+  migrateLegacyEnvManagedSalesBots();
   const row = registry
     .prepare(`SELECT * FROM ${managedTable} WHERE username = ? COLLATE NOCASE`)
     .get(username.replace(/^@/, "")) as Omit<ManagedSalesBot, "key"> | undefined;
@@ -280,7 +290,7 @@ function safeEqual(leftValue: string, rightValue: string) {
 }
 
 export function resolveSalesBotRuntimeByWebhookSecret(receivedSecret: string) {
-  const primaryToken = process.env.TELEGRAM_BOT_TOKEN?.trim();
+  const primaryToken = getBotTokenFromStoreOrEnv("sales", "TELEGRAM_BOT_TOKEN");
   if (primaryToken && safeEqual(receivedSecret, webhookSecret(primaryToken))) {
     return {
       id: "primary",

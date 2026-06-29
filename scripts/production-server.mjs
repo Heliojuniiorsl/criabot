@@ -202,40 +202,142 @@ function getCriaBotToken() {
   );
 }
 
+function resolveRegistryPath() {
+  const primaryDatabasePath = resolveSalesDatabasePath();
+  return resolve(
+    process.env.BOT_REGISTRY_PATH ?? dirname(primaryDatabasePath),
+    process.env.BOT_REGISTRY_PATH ? "" : "bot-registry.sqlite",
+  );
+}
+
+function ensureRegistryTables(registry) {
+  registry.exec(`
+    CREATE TABLE IF NOT EXISTS bot_token_store (
+      key TEXT PRIMARY KEY,
+      token TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS managed_sales_bots (
+      id TEXT PRIMARY KEY,
+      token TEXT NOT NULL UNIQUE,
+      telegram_id TEXT NOT NULL UNIQUE,
+      username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      display_name TEXT NOT NULL,
+      database_path TEXT NOT NULL UNIQUE,
+      owner_account_id TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+}
+
+function getStoredBotToken(key, envName) {
+  const registryPath = resolveRegistryPath();
+  mkdirSync(dirname(registryPath), { recursive: true });
+  const registry = new Database(registryPath);
+  try {
+    ensureRegistryTables(registry);
+    const existing = registry
+      .prepare("SELECT token FROM bot_token_store WHERE key = ?")
+      .get(key)?.token;
+    if (existing) return String(existing).trim();
+
+    const envToken = process.env[envName]?.trim();
+    if (!envToken) return "";
+    registry
+      .prepare(
+        `INSERT INTO bot_token_store (key, token, updated_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET
+           token = excluded.token,
+           updated_at = excluded.updated_at`,
+      )
+      .run(key, envToken, new Date().toISOString());
+    return envToken;
+  } finally {
+    registry.close();
+  }
+}
+
 async function setTelegramCommandsMenu(token, commands, label) {
   await telegramPost(token, "setMyCommands", label, { commands });
   await telegramPost(token, "setChatMenuButton", label, { menu_button: { type: "commands" } });
 }
 
-function listSalesClonesForWebhookSync() {
-  const envClones = [];
-  if (process.env.DANI_MILLER_BOT_TOKEN?.trim()) {
-    envClones.push({ username: "danimiller_bot", token: process.env.DANI_MILLER_BOT_TOKEN.trim() });
-  }
-  const envUsernames = new Set(envClones.map((clone) => clone.username.toLowerCase()));
-  const deprecatedUsernames = new Set(["bruninhabb_bot"]);
-
+function migrateDaniBotFromEnv(registry) {
+  const token = process.env.DANI_MILLER_BOT_TOKEN?.trim();
+  if (!token) return;
   const primaryDatabasePath = resolveSalesDatabasePath();
-  const registryPath = resolve(
-    process.env.BOT_REGISTRY_PATH ?? dirname(primaryDatabasePath),
-    process.env.BOT_REGISTRY_PATH ? "" : "bot-registry.sqlite",
-  );
-  if (!existsSync(registryPath)) return envClones;
+  const id = "danimiller-bot";
+  const username = "danimiller_bot";
+  const databasePath = resolve(dirname(primaryDatabasePath), "sales-bots", `${id}.sqlite`);
+  ensureSalesCloneDatabase(databasePath);
+  const now = new Date().toISOString();
+  const existing = registry
+    .prepare("SELECT id FROM managed_sales_bots WHERE id = ? OR username = ? COLLATE NOCASE")
+    .get(id, username);
+  if (existing?.id) {
+    registry
+      .prepare("UPDATE managed_sales_bots SET token = ?, updated_at = ? WHERE id = ?")
+      .run(token, now, existing.id);
+    return;
+  }
+  registry
+    .prepare(
+      `INSERT INTO managed_sales_bots
+       (id, token, telegram_id, username, display_name, database_path, owner_account_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      id,
+      token,
+      "env:DANI_MILLER_BOT_TOKEN",
+      username,
+      "Dani Miller",
+      databasePath,
+      null,
+      now,
+      now,
+    );
+}
 
-  const registry = new Database(registryPath, { readonly: true });
+function listSalesClonesForWebhookSync() {
+  const deprecatedUsernames = new Set(["bruninhabb_bot"]);
+  const registryPath = resolveRegistryPath();
+  mkdirSync(dirname(registryPath), { recursive: true });
+  const registry = new Database(registryPath);
   try {
-    const table = registry
+    ensureRegistryTables(registry);
+    migrateDaniBotFromEnv(registry);
+    const rows = [
+      ...registry
+        .prepare(
+          "SELECT username, token FROM managed_sales_bots WHERE token IS NOT NULL AND token != ''",
+        )
+        .all(),
+    ];
+    const legacyTable = registry
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'sales_bot_clones'")
       .get();
-    if (!table) return envClones;
-    const databaseClones = registry
-      .prepare(
-        "SELECT username, token FROM sales_bot_clones WHERE token IS NOT NULL AND token != ''",
-      )
-      .all()
+    if (legacyTable) {
+      rows.push(
+        ...registry
+          .prepare(
+            "SELECT username, token FROM sales_bot_clones WHERE token IS NOT NULL AND token != ''",
+          )
+          .all(),
+      );
+    }
+    const seen = new Set();
+    return rows
       .filter((clone) => !deprecatedUsernames.has(String(clone.username).toLowerCase()))
-      .filter((clone) => !envUsernames.has(String(clone.username).toLowerCase()));
-    return [...envClones, ...databaseClones];
+      .filter((clone) => {
+        const username = String(clone.username).toLowerCase();
+        if (seen.has(username)) return false;
+        seen.add(username);
+        return true;
+      });
   } finally {
     registry.close();
   }
@@ -315,11 +417,17 @@ function ensureSalesCloneDatabase(databasePath) {
 }
 
 function ensureProductionSalesCloneDatabases() {
-  if (!process.env.DANI_MILLER_BOT_TOKEN?.trim()) return;
-  const primaryDatabasePath = resolveSalesDatabasePath();
-  ensureSalesCloneDatabase(
-    resolve(dirname(primaryDatabasePath), "sales-bots", "danimiller-bot.sqlite"),
-  );
+  const registryPath = resolveRegistryPath();
+  mkdirSync(dirname(registryPath), { recursive: true });
+  const registry = new Database(registryPath);
+  try {
+    ensureRegistryTables(registry);
+    migrateDaniBotFromEnv(registry);
+    const rows = registry.prepare("SELECT database_path FROM managed_sales_bots").all();
+    for (const row of rows) ensureSalesCloneDatabase(String(row.database_path));
+  } finally {
+    registry.close();
+  }
 }
 
 async function syncSalesWebhooksOnBoot() {
@@ -328,8 +436,8 @@ async function syncSalesWebhooksOnBoot() {
 
   const tasks = [
     setSiteWebhook("CriaBot oficial", getCriaBotToken(), publicUrl),
-    setSalesWebhook("Bruna", process.env.TELEGRAM_BOT_TOKEN, publicUrl),
-    setImageWebhook("UpMidias", process.env.IMAGE_BOT_TOKEN, publicUrl),
+    setSalesWebhook("Bruna", getStoredBotToken("sales", "TELEGRAM_BOT_TOKEN"), publicUrl),
+    setImageWebhook("UpMidias", getStoredBotToken("images", "IMAGE_BOT_TOKEN"), publicUrl),
   ];
   for (const clone of listSalesClonesForWebhookSync()) {
     tasks.push(setSalesWebhook(`clone @${clone.username}`, clone.token, publicUrl));

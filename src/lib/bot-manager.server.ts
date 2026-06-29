@@ -5,6 +5,7 @@ import {
   listManagedSalesBots,
   type ManagedSalesBot,
 } from "@/lib/sales-bot-registry.server";
+import { getBotTokenFromStoreOrEnv } from "@/lib/bot-token-store.server";
 import {
   deleteWebhookWithToken,
   getBotInfoWithToken,
@@ -59,8 +60,8 @@ function staticConfigs(): ManagedBotConfig[] {
     {
       key: "sales",
       kind: "sales",
-      token: process.env.TELEGRAM_BOT_TOKEN?.trim() || null,
-      tokenLabel: "TELEGRAM_BOT_TOKEN",
+      token: getBotTokenFromStoreOrEnv("sales", "TELEGRAM_BOT_TOKEN"),
+      tokenLabel: "token do bot Bruna",
       fallbackName: "Bot de vendas",
       webhookPath: "/api/public/telegram/webhook",
       allowedUpdates: salesUpdates,
@@ -70,8 +71,8 @@ function staticConfigs(): ManagedBotConfig[] {
     {
       key: "images",
       kind: "images",
-      token: process.env.IMAGE_BOT_TOKEN?.trim() || null,
-      tokenLabel: "IMAGE_BOT_TOKEN",
+      token: getBotTokenFromStoreOrEnv("images", "IMAGE_BOT_TOKEN"),
+      tokenLabel: "token do UpMidias",
       fallbackName: "Bot de imagens",
       webhookPath: "/api/public/telegram/image-webhook",
       allowedUpdates: imageUpdates,
