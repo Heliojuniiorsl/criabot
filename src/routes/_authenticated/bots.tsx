@@ -226,6 +226,46 @@ function MiniTutorial({
   );
 }
 
+const botFatherTokenTutorial = [
+  "Abra o Telegram e pesquise por BotFather.",
+  "Toque em Open para abrir o BotFather.",
+  "Se for a primeira vez, toque em Start ou envie /start.",
+  "Toque em Create a New Bot.",
+  "Coloque a foto do bot tocando no icone da camera.",
+  "Digite o nome do bot.",
+  "Em About, voce pode colocar uma descricao curta ou deixar vazio.",
+  "Escolha o username do bot.",
+  "O username precisa terminar com bot.",
+  "Se aparecer que o username ja esta em uso, escolha outro nome ate aceitar.",
+  "Quando o bot for criado, o BotFather vai mostrar o token da API.",
+  "Toque em Copy para copiar o token.",
+  "Cole esse token no seu painel ou sistema onde pede o Token do Bot.",
+];
+
+function BotFatherTokenTutorialAside() {
+  return (
+    <aside className="rounded-3xl border bg-[#F5F5F3] p-5 shadow-sm lg:sticky lg:top-24 lg:self-start">
+      <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+        <ShieldCheck className="h-4 w-4" />
+        Como pegar o token
+      </div>
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+        Siga estes passos no Telegram antes de colar o token no CriaBot.
+      </p>
+      <ol className="mt-4 space-y-3">
+        {botFatherTokenTutorial.map((item, index) => (
+          <li key={item} className="flex gap-3 rounded-2xl bg-white p-3 text-sm shadow-sm">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+              {index + 1}
+            </span>
+            <span className="leading-relaxed text-foreground/85">{item}</span>
+          </li>
+        ))}
+      </ol>
+    </aside>
+  );
+}
+
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
   let timeout: ReturnType<typeof setTimeout>;
   const timeoutPromise = new Promise<never>((_, reject) => {
@@ -715,7 +755,11 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
 
             <div
               className={`mt-6 grid gap-6 ${
-                step === 4 ? "lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]" : ""
+                step === 1
+                  ? "lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]"
+                  : step === 4
+                    ? "lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]"
+                    : ""
               }`}
             >
               <form
@@ -736,24 +780,6 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                         Passo 1: conectar Telegram
                       </h3>
                     </div>
-
-                    <MiniTutorial
-                      title="Antes de continuar"
-                      items={[
-                        {
-                          title: "Pegue o token",
-                          body: "Abra o @BotFather, crie ou escolha seu bot e copie o token completo no formato numero:chave.",
-                        },
-                        {
-                          title: "Cole no CriaBot",
-                          body: "Cole o token no campo abaixo. O site valida automaticamente e mostra nome, username e foto do bot.",
-                        },
-                        {
-                          title: "Vincule seu usuario",
-                          body: "Abra o bot oficial do CriaBot, toque em /start e volte ao site para continuar a criacao.",
-                        },
-                      ]}
-                    />
 
                     <div className="rounded-2xl border bg-card p-4 shadow-sm">
                       <div className="mb-4">
@@ -1321,6 +1347,8 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                   )}
                 </div>
               </form>
+
+              {step === 1 && <BotFatherTokenTutorialAside />}
 
               {step === 4 && (
                 <aside className="rounded-3xl border bg-gradient-to-b from-primary/5 to-white p-5">
