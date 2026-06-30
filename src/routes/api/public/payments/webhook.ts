@@ -5,7 +5,7 @@ import { getMercadoPagoPayment, validateMercadoPagoSignature } from "@/lib/merca
 import { localDb } from "@/lib/database.server";
 import { getManagedBotToken } from "@/lib/bot-manager.server";
 import { findManagedSalesBotById, managedSalesBotRuntime } from "@/lib/sales-bot-registry.server";
-import { enterSalesBotRuntime } from "@/lib/sales-bot-runtime.server";
+import { runWithSalesBotRuntime } from "@/lib/sales-bot-runtime.server";
 import {
   fulfillImageBotLimitBoostPayment,
   fulfillImageBotPayment,
@@ -118,36 +118,38 @@ export const Route = createFileRoute("/api/public/payments/webhook")({
             return Response.json({ ok: true, target: "image_bot_premium" });
           }
 
-          let salesOrderReference = externalReference;
+          async function processSalesPayment(salesOrderReference: string) {
+            const orderId = orderIdSchema.parse(salesOrderReference);
+
+            if (payment.status !== "approved") {
+              await localDb
+                .from("payments")
+                .update({ raw_status: payment.status })
+                .eq("order_id", orderId);
+              return Response.json({ ok: true, status: payment.status });
+            }
+            if (payment.currency_id !== "BRL") throw new Error("Moeda inesperada no pagamento");
+
+            const { fulfillOrder } = await import("@/lib/fulfillment.server");
+            await fulfillOrder(localDb, {
+              orderId,
+              providerPaymentId: String(payment.id),
+              providerStatus: payment.status_detail,
+              paidAt: payment.date_approved,
+              amount: Number(payment.transaction_amount),
+            });
+            return Response.json({ ok: true });
+          }
+
           const managedBotReference = /^sales:([^:]+):(.+)$/.exec(externalReference);
           if (managedBotReference) {
             const bot = findManagedSalesBotById(managedBotReference[1]);
             if (!bot) throw new Error("Bot de vendas do pagamento nao foi encontrado");
-            enterSalesBotRuntime(managedSalesBotRuntime(bot));
-            salesOrderReference = managedBotReference[2];
-          } else {
-            enterSalesBotRuntime(null);
+            return runWithSalesBotRuntime(managedSalesBotRuntime(bot), () =>
+              processSalesPayment(managedBotReference[2]),
+            );
           }
-          const orderId = orderIdSchema.parse(salesOrderReference);
-
-          if (payment.status !== "approved") {
-            await localDb
-              .from("payments")
-              .update({ raw_status: payment.status })
-              .eq("order_id", orderId);
-            return Response.json({ ok: true, status: payment.status });
-          }
-          if (payment.currency_id !== "BRL") throw new Error("Moeda inesperada no pagamento");
-
-          const { fulfillOrder } = await import("@/lib/fulfillment.server");
-          await fulfillOrder(localDb, {
-            orderId,
-            providerPaymentId: String(payment.id),
-            providerStatus: payment.status_detail,
-            paidAt: payment.date_approved,
-            amount: Number(payment.transaction_amount),
-          });
-          return Response.json({ ok: true });
+          return runWithSalesBotRuntime(null, () => processSalesPayment(externalReference));
         } catch (error) {
           console.error("[mercado-pago-webhook]", error);
           return new Response("Falha temporária", { status: 500 });

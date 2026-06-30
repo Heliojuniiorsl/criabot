@@ -1477,9 +1477,8 @@ if (
           { runDueImageBotGroupAutomations },
           { runImageBotPremiumExpiryReminders },
           { listManagedSalesBots, managedSalesBotRuntime },
-          { enterSalesBotRuntime, runWithSalesBotRuntime },
+          { runWithSalesBotRuntime },
         ]) => {
-          enterSalesBotRuntime(null);
           const runSalesAutomations = () =>
             Promise.all([
               runSubscriptionAutomation(),
@@ -1488,7 +1487,7 @@ if (
               runDueGroupBroadcasts(localDb),
             ]);
           return Promise.all([
-            runSalesAutomations(),
+            runWithSalesBotRuntime(null, runSalesAutomations),
             ...listManagedSalesBots().map((bot) =>
               Promise.resolve(
                 runWithSalesBotRuntime(managedSalesBotRuntime(bot), runSalesAutomations),

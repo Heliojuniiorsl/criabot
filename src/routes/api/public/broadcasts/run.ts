@@ -29,8 +29,7 @@ export const Route = createFileRoute("/api/public/broadcasts/run")({
           await import("@/lib/sales.server");
         const { listManagedSalesBots, managedSalesBotRuntime } =
           await import("@/lib/sales-bot-registry.server");
-        const { enterSalesBotRuntime, runWithSalesBotRuntime } =
-          await import("@/lib/sales-bot-runtime.server");
+        const { runWithSalesBotRuntime } = await import("@/lib/sales-bot-runtime.server");
 
         const runSalesAutomations = async () => {
           const [broadcasts, subscriptions, pendingPix] = await Promise.all([
@@ -41,10 +40,9 @@ export const Route = createFileRoute("/api/public/broadcasts/run")({
           return { broadcasts, subscriptions, pendingPix };
         };
 
-        enterSalesBotRuntime(null);
         const [primarySales, managedSalesBots, imageGroupAutomations, premiumExpiryReminders] =
           await Promise.all([
-            runSalesAutomations(),
+            runWithSalesBotRuntime(null, runSalesAutomations),
             Promise.all(
               listManagedSalesBots().map((bot) =>
                 runWithSalesBotRuntime(managedSalesBotRuntime(bot), runSalesAutomations),

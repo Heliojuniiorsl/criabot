@@ -23,7 +23,7 @@ export function enterSalesBotRuntime(runtime: SalesBotRuntime | null) {
 }
 
 export function runWithSalesBotRuntime<T>(
-  runtime: SalesBotRuntime,
+  runtime: SalesBotRuntime | null,
   callback: () => T | Promise<T>,
 ) {
   return runtimeStorage.run(runtime, callback);
