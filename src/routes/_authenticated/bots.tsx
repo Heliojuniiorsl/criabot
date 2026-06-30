@@ -242,23 +242,55 @@ const botFatherTokenTutorial = [
   "Cole esse token no seu painel ou sistema onde pede o Token do Bot.",
 ];
 
+const botFatherUrl = "https://t.me/BotFather";
+
+function BotFatherTutorialText({ text }: { text: string }) {
+  if (!text.includes("BotFather")) return <>{text}</>;
+
+  const [before, after] = text.split("BotFather");
+  return (
+    <>
+      {before}
+      <a
+        href={botFatherUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="font-semibold text-primary hover:text-primary/80"
+      >
+        BotFather
+      </a>
+      {after}
+    </>
+  );
+}
+
 function BotFatherTokenTutorialAside() {
   return (
-    <aside className="border-t pt-5 lg:sticky lg:top-24 lg:self-start lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
-      <div className="flex items-center gap-2 text-base font-semibold text-foreground">
-        <ShieldCheck className="h-4 w-4 text-primary" />
-        Como pegar o token
+    <aside className="border-t pt-4 lg:sticky lg:top-24 lg:self-start lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <ShieldCheck className="h-4 w-4 text-primary" />
+          Como pegar o token
+        </div>
+        <Button asChild variant="outline" size="sm" className="h-8 rounded-full px-3 text-xs">
+          <a href={botFatherUrl} target="_blank" rel="noreferrer">
+            <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+            Abrir
+          </a>
+        </Button>
       </div>
-      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
         Siga estes passos no Telegram antes de colar o token no CriaBot.
       </p>
-      <ol className="mt-5 space-y-0 divide-y">
+      <ol className="mt-3 space-y-0 divide-y">
         {botFatherTokenTutorial.map((item, index) => (
-          <li key={item} className="flex gap-3 py-3 text-sm first:pt-0 last:pb-0">
+          <li key={item} className="flex gap-2.5 py-2 text-xs first:pt-0 last:pb-0">
             <span className="w-6 shrink-0 font-semibold text-primary">
               {String(index + 1).padStart(2, "0")}
             </span>
-            <span className="leading-relaxed text-muted-foreground">{item}</span>
+            <span className="leading-relaxed text-muted-foreground">
+              <BotFatherTutorialText text={item} />
+            </span>
           </li>
         ))}
       </ol>
@@ -624,7 +656,7 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
       <div
         className={
           embedded
-            ? "relative mx-auto w-full max-w-6xl"
+            ? `relative mx-auto w-full ${isCreateMode ? "max-w-7xl" : "max-w-6xl"}`
             : "relative mx-auto flex w-full max-w-6xl flex-col justify-start md:min-h-[calc(100vh-6rem)] md:justify-center"
         }
       >
@@ -698,11 +730,7 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
         )}
 
         {isCreateMode && (
-          <Card
-            className={`overflow-hidden border bg-card p-5 shadow-sm backdrop-blur sm:p-6 ${
-              embedded ? "mt-6" : "mt-8"
-            }`}
-          >
+          <section className={`${embedded ? "mt-6" : "mt-8"}`}>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="mt-3 font-display text-2xl font-semibold">
@@ -712,7 +740,7 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
               <div className="text-sm text-muted-foreground">Passo {step} de 4</div>
             </div>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-4">
+            <div className="mt-5 grid gap-2 sm:grid-cols-4">
               {wizardSteps.map((item) => {
                 const Icon = item.icon;
                 const active = item.id === step;
@@ -724,46 +752,55 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                     type="button"
                     onClick={() => handleStepSelect(item.id)}
                     aria-disabled={blocked}
-                    className={`rounded-2xl border p-3 text-left transition ${
+                    className={`rounded-2xl border px-3 py-2 text-left transition ${
                       active
                         ? "border-primary bg-primary text-primary-foreground shadow-sm"
                         : done
-                          ? "border-primary/30 bg-primary/5"
-                          : "bg-background"
+                          ? "border-primary/20 bg-primary/5 text-primary"
+                          : "border-border bg-card/70 text-muted-foreground hover:bg-muted/60"
                     } ${blocked ? "cursor-not-allowed opacity-60" : ""}`}
                   >
                     <div className="flex items-center gap-2">
                       <span
-                        className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                          active ? "bg-white/20" : "bg-primary/10 text-primary"
+                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                          active
+                            ? "bg-white/20"
+                            : done
+                              ? "bg-primary/10 text-primary"
+                              : "bg-muted text-muted-foreground"
                         }`}
                       >
-                        <Icon className="h-4 w-4" />
+                        <Icon className="h-3.5 w-3.5" />
                       </span>
-                      <span className="text-xs font-semibold">Passo {item.id}</span>
+                      <span className="min-w-0">
+                        <span className="block text-[11px] font-semibold uppercase tracking-wide">
+                          Passo {item.id}
+                        </span>
+                        <span
+                          className={`block truncate text-sm font-semibold ${
+                            active ? "text-primary-foreground" : "text-foreground"
+                          }`}
+                        >
+                          {item.title}
+                        </span>
+                      </span>
                     </div>
-                    <p className="mt-3 text-sm font-semibold">{item.title}</p>
-                    <p
-                      className={`mt-1 text-xs ${active ? "text-white/80" : "text-muted-foreground"}`}
-                    >
-                      {item.description}
-                    </p>
                   </button>
                 );
               })}
             </div>
 
             <div
-              className={`mt-6 grid gap-6 ${
+              className={`mt-5 grid gap-5 ${
                 step === 1
-                  ? "lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]"
+                  ? "lg:grid-cols-[minmax(0,1fr)_minmax(260px,330px)]"
                   : step === 4
                     ? "lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]"
                     : ""
               }`}
             >
               <form
-                className="rounded-3xl border bg-background p-5 shadow-sm"
+                className="space-y-5"
                 onSubmit={(event) => {
                   event.preventDefault();
                   if (step === 4) {
@@ -781,8 +818,8 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                       </h3>
                     </div>
 
-                    <div className="rounded-2xl border bg-card p-4 shadow-sm">
-                      <div className="mb-4">
+                    <div className="space-y-4">
+                      <div>
                         <div className="flex items-center gap-2 text-sm font-semibold text-primary">
                           <Bot className="h-4 w-4" />
                           Token do bot que sera criado
@@ -822,13 +859,13 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                         )}
                       </div>
                       {validateToken.isPending && hasToken && tokenHasValidFormat && (
-                        <div className="mt-4 rounded-2xl border border-primary/20 bg-primary/5 p-4 text-sm text-primary">
+                        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3 text-sm text-primary">
                           <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
                           Validando token automaticamente...
                         </div>
                       )}
                       {validatedTokenIsCurrent && validatedBot && (
-                        <div className="mt-4 flex items-center gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                        <div className="flex items-center gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
                           {validatedBot.photo_data_url ? (
                             <img
                               src={validatedBot.photo_data_url}
@@ -854,23 +891,30 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                           </div>
                         </div>
                       )}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="mt-4"
-                        onClick={handleValidateToken}
-                        disabled={!hasToken || !tokenHasValidFormat || validateToken.isPending}
-                      >
-                        {validateToken.isPending ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <ShieldCheck className="mr-2 h-4 w-4" />
-                        )}
-                        {validateToken.isPending ? "Validando..." : "Validar token"}
-                      </Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleValidateToken}
+                          disabled={!hasToken || !tokenHasValidFormat || validateToken.isPending}
+                        >
+                          {validateToken.isPending ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <ShieldCheck className="mr-2 h-4 w-4" />
+                          )}
+                          {validateToken.isPending ? "Validando..." : "Validar token"}
+                        </Button>
+                        <Button asChild variant="outline">
+                          <a href={botFatherUrl} target="_blank" rel="noreferrer">
+                            <ExternalLink className="mr-2 h-4 w-4" />
+                            Abrir BotFather
+                          </a>
+                        </Button>
+                      </div>
                     </div>
 
-                    <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+                    <div className="border-t pt-5">
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 text-sm font-semibold text-primary">
@@ -922,7 +966,7 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                       )}
 
                       {criaBotLinkStatus?.bot && (
-                        <div className="mt-4 flex items-center gap-3 rounded-2xl bg-background p-3 text-sm shadow-sm">
+                        <div className="mt-3 flex items-center gap-3 rounded-2xl bg-muted/40 p-3 text-sm">
                           {criaBotLinkStatus.bot.photo_data_url ? (
                             <img
                               src={criaBotLinkStatus.bot.photo_data_url}
@@ -946,7 +990,7 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                       )}
 
                       {linkedCriaBotUser ? (
-                        <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                        <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
                           <div className="flex items-start gap-4">
                             {linkedCriaBotUser.photo_data_url ? (
                               <img
@@ -988,7 +1032,7 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                       ) : (
                         criaBotLinkStatus?.configured &&
                         !criaBotLinkStatus.error && (
-                          <p className="mt-4 rounded-2xl bg-background p-4 text-sm text-muted-foreground">
+                          <p className="mt-3 text-sm text-muted-foreground">
                             Depois que o usuario abrir o bot oficial e der /start, o preview aparece
                             aqui automaticamente.
                           </p>
@@ -1424,7 +1468,7 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                 </aside>
               )}
             </div>
-          </Card>
+          </section>
         )}
 
         {!isCreateMode && (
