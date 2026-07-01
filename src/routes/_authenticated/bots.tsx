@@ -642,7 +642,7 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
     <main
       className={
         embedded
-          ? "relative overflow-hidden"
+          ? `relative overflow-hidden border-0 ${isCreateMode ? "lg:-mt-14" : ""}`
           : "relative min-h-dvh overflow-hidden bg-[radial-gradient(circle_at_15%_0%,rgba(37,99,235,.08),transparent_28rem),linear-gradient(180deg,#ffffff_0%,#f5f5f3_100%)] px-4 py-6 sm:px-5 sm:py-12"
       }
     >
