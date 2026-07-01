@@ -480,10 +480,6 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
   const isAdmin = role === "admin";
   const criaBotLinkStatus = criaBotLinkQuery.data;
   const linkedCriaBotUser = criaBotLinkStatus?.linked_user ?? null;
-  const detectedVipChat = criaBotLinkStatus?.vip_chat ?? null;
-  const detectedVipChatId = detectedVipChat?.chat_id ? String(detectedVipChat.chat_id) : "";
-  const detectedVipChatIsSelected =
-    Boolean(detectedVipChatId) && vipChatId.trim() === detectedVipChatId;
   const cleanToken = token.trim();
   const hasToken = cleanToken.length > 0;
   const tokenHasValidFormat = !hasToken || telegramBotTokenPattern.test(cleanToken);
@@ -534,14 +530,6 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
     setVipChatId(value);
     setVipVerification(null);
     setVipVerificationError(null);
-  }
-
-  function handleUseDetectedVipChat() {
-    if (!detectedVipChatId) return;
-    setVipChatId(detectedVipChatId);
-    setVipVerification(null);
-    setVipVerificationError(null);
-    toast.success("ID do VIP preenchido");
   }
 
   function handleVerifyVipChat() {
@@ -663,15 +651,6 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
 
     return () => clearTimeout(timeout);
   }, [cleanToken, isCreateMode, step, validatedTokenIsCurrent, validateToken]);
-
-  useEffect(() => {
-    if (!isCreateMode || !detectedVipChatId || vipChatId.trim()) {
-      return;
-    }
-    setVipChatId(detectedVipChatId);
-    setVipVerification(null);
-    setVipVerificationError(null);
-  }, [detectedVipChatId, isCreateMode, vipChatId]);
 
   return (
     <main
@@ -1107,87 +1086,27 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                       </p>
                     </div>
                     <div className="rounded-2xl border bg-[#F5F5F3] p-4">
-                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 text-sm font-semibold text-primary">
                             <MessageSquareText className="h-4 w-4" />
                             Detectar ID pelo encaminhamento
                           </div>
                           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                            Encaminhe para o bot oficial uma mensagem do grupo ou canal VIP. Depois
-                            volte aqui e clique em <strong>Atualizar</strong>.
+                            Encaminhe uma mensagem do grupo ou canal VIP para o bot oficial. Ele vai
+                            responder com o ID e um botão para copiar. Depois cole o ID no campo
+                            abaixo.
                           </p>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 lg:min-w-[270px]">
-                          {criaBotLinkStatus?.link_url && (
-                            <Button asChild className="rounded-full px-4">
-                              <a href={criaBotLinkStatus.link_url} target="_blank" rel="noreferrer">
-                                <ExternalLink className="mr-2 h-4 w-4" />
-                                Abrir bot oficial
-                              </a>
-                            </Button>
-                          )}
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="rounded-full"
-                            onClick={() => void criaBotLinkQuery.refetch()}
-                            disabled={criaBotLinkQuery.isFetching}
-                          >
-                            {criaBotLinkQuery.isFetching ? (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                              <RotateCw className="mr-2 h-4 w-4" />
-                            )}
-                            Atualizar
+                        {criaBotLinkStatus?.link_url && (
+                          <Button asChild className="rounded-full px-4 lg:min-w-[180px]">
+                            <a href={criaBotLinkStatus.link_url} target="_blank" rel="noreferrer">
+                              <ExternalLink className="mr-2 h-4 w-4" />
+                              Abrir bot oficial
+                            </a>
                           </Button>
-                        </div>
+                        )}
                       </div>
-
-                      {detectedVipChat ? (
-                        <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm">
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2 font-semibold text-emerald-700">
-                                <CheckCircle2 className="h-4 w-4" />
-                                VIP detectado
-                              </div>
-                              <p className="mt-1 truncate font-display text-lg font-semibold">
-                                {detectedVipChat.title ||
-                                  (detectedVipChat.username
-                                    ? `@${detectedVipChat.username}`
-                                    : "Grupo/canal VIP")}
-                              </p>
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                {formatTelegramChatType(detectedVipChat.type)} - ID{" "}
-                                {detectedVipChat.chat_id}
-                                {detectedVipChat.username
-                                  ? ` - @${detectedVipChat.username}`
-                                  : ""}
-                              </p>
-                            </div>
-                            <Button
-                              type="button"
-                              variant={detectedVipChatIsSelected ? "outline" : "default"}
-                              className="rounded-full"
-                              onClick={handleUseDetectedVipChat}
-                              disabled={detectedVipChatIsSelected}
-                            >
-                              {detectedVipChatIsSelected ? (
-                                <CheckCircle2 className="mr-2 h-4 w-4" />
-                              ) : (
-                                <ArrowRight className="mr-2 h-4 w-4" />
-                              )}
-                              {detectedVipChatIsSelected ? "ID preenchido" : "Usar esse ID"}
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="mt-4 rounded-2xl border border-dashed bg-background p-4 text-sm text-muted-foreground">
-                          Aguardando mensagem encaminhada. Se o Telegram esconder a origem da
-                          mensagem, informe o ID manualmente abaixo.
-                        </div>
-                      )}
                     </div>
 
                     <div className="space-y-2">

@@ -371,8 +371,12 @@ export function saveCriaBotForwardedVipChat(input: {
   };
 }
 
-export async function sendCriaBotMessage(chatId: number | string, text: string) {
+export async function sendCriaBotMessage(
+  chatId: number | string,
+  text: string,
+  keyboard?: Parameters<typeof sendMessageWithToken>[3],
+) {
   const token = getCriaBotToken();
   if (!token) throw new Error("CRIABOT_TOKEN não configurado");
-  return sendMessageWithToken(token, chatId, text);
+  return sendMessageWithToken(token, chatId, text, keyboard);
 }

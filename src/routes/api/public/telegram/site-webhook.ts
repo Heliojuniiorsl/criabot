@@ -6,7 +6,6 @@ import {
   getCriaBotWebhookSecret,
   isDuplicateCriaBotUpdate,
   linkCriaBotUserByCode,
-  saveCriaBotForwardedVipChat,
   sendCriaBotMessage,
 } from "@/lib/site-bot.server";
 
@@ -34,32 +33,19 @@ function formatChatType(type: string | undefined) {
   return "Grupo/canal";
 }
 
-function getForwardedChat(message: any): { chat: ForwardedChat; messageId: number | null } | null {
+function getForwardedChat(message: any): ForwardedChat | null {
   const origin = message?.forward_origin;
 
   if (origin?.type === "channel" && origin.chat?.id) {
-    return {
-      chat: origin.chat,
-      messageId: Number.isFinite(Number(origin.message_id)) ? Number(origin.message_id) : null,
-    };
+    return origin.chat;
   }
 
   if (origin?.type === "chat" && origin.sender_chat?.id) {
-    return {
-      chat: origin.sender_chat,
-      messageId: Number.isFinite(Number(message?.forward_from_message_id))
-        ? Number(message.forward_from_message_id)
-        : null,
-    };
+    return origin.sender_chat;
   }
 
   if (message?.forward_from_chat?.id) {
-    return {
-      chat: message.forward_from_chat,
-      messageId: Number.isFinite(Number(message.forward_from_message_id))
-        ? Number(message.forward_from_message_id)
-        : null,
-    };
+    return message.forward_from_chat;
   }
 
   return null;
@@ -132,41 +118,22 @@ export const Route = createFileRoute("/api/public/telegram/site-webhook")({
         }
 
         const forwardedChat = getForwardedChat(message);
-        if (!forwardedChat?.chat?.id) {
+        if (!forwardedChat?.id) {
           await sendCriaBotMessage(
             chatId,
-            "Para detectar o grupo/canal VIP automaticamente, encaminhe para mim uma mensagem do VIP. Depois volte ao site e clique em Atualizar.",
+            "Não consegui identificar o grupo/canal dessa mensagem.\n\nEncaminhe uma mensagem diretamente do grupo/canal VIP ou copie o ID manualmente e cole no painel.",
           );
           return Response.json({ ok: true, vip_chat_detected: false });
         }
 
-        const saved = saveCriaBotForwardedVipChat({
-          telegramUserId: Number(user.id),
-          telegramChatId: chatId,
-          chat: {
-            id: Number(forwardedChat.chat.id),
-            title: forwardedChat.chat.title,
-            username: forwardedChat.chat.username,
-            type: forwardedChat.chat.type,
-          },
-          messageId: forwardedChat.messageId,
-        });
-
-        if (!saved.ok) {
-          await sendCriaBotMessage(
-            chatId,
-            "Antes de detectar o VIP, vincule sua conta pelo botão dentro do painel CriaBot. Depois encaminhe a mensagem novamente.",
-          );
-          return Response.json({ ok: true, vip_chat_detected: false, reason: saved.reason });
-        }
-
+        const vipChatId = String(Number(forwardedChat.id));
         const title =
-          saved.vip_chat.title ||
-          (saved.vip_chat.username ? `@${saved.vip_chat.username}` : String(saved.vip_chat.chat_id));
+          forwardedChat.title || (forwardedChat.username ? `@${forwardedChat.username}` : vipChatId);
 
         await sendCriaBotMessage(
           chatId,
-          `VIP detectado com sucesso.\n\n${formatChatType(saved.vip_chat.type || undefined)}: <b>${escapeHtml(title)}</b>\nID: <code>${saved.vip_chat.chat_id}</code>\n\nAgora volte ao Site CriaBot e clique em Atualizar para usar esse ID.`,
+          `ID do VIP encontrado.\n\n${formatChatType(forwardedChat.type)}: <b>${escapeHtml(title)}</b>\nID: <code>${vipChatId}</code>\n\nToque em <b>Copiar ID</b> e cole no campo ID do grupo/canal VIP no CriaBot.`,
+          [[{ text: "Copiar ID", copy_text: { text: vipChatId } }]],
         );
 
         return Response.json({ ok: true, vip_chat_detected: true });
