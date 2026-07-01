@@ -227,14 +227,13 @@ function MiniTutorial({
 }
 
 const botFatherTokenTutorial = [
-  "Abra o Telegram e pesquise por BotFather.",
-  "Toque em Open para abrir o BotFather.",
-  "Se for a primeira vez, toque em Start ou envie /start.",
+  "Abra o Telegram e pesquise por @BotFather.",
+  "Depois de encontrar o BotFather, toque em Open no botao que aparece embaixo, proximo a caixa de mensagem.",
+  "Se for a primeira vez, toque em Start.",
   "Toque em Create a New Bot.",
-  "Coloque a foto do bot tocando no icone da camera.",
   "Digite o nome do bot.",
-  "Escolha um username que termine com bot.",
-  "Quando o bot for criado, o BotFather vai mostrar o token da API.",
+  "Escolha um username unico terminado em bot ou _bot. Ex: usernamebot ou username_bot.",
+  "Quando o bot for criado, o BotFather mostrara o token da API.",
   "Toque em Copy para copiar o token.",
 ];
 
