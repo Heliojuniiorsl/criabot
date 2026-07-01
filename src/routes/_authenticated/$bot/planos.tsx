@@ -351,7 +351,7 @@ function SalesPlans() {
                     onChange={(event) => setAccessType(event.target.value as "days" | "lifetime")}
                   >
                     <option value="days">Por dias</option>
-                    <option value="lifetime">Vitalicio</option>
+                    <option value="lifetime">Vitalício</option>
                   </select>
                 </div>
                 {accessType === "days" ? (
@@ -368,7 +368,7 @@ function SalesPlans() {
                   </div>
                 ) : (
                   <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3 text-sm text-muted-foreground">
-                    Este plano nunca vence e nao envia avisos de renovacao.
+                    Este plano nunca vence e não envia avisos de renovação.
                   </div>
                 )}
               </div>
@@ -500,7 +500,7 @@ function SalesPlans() {
                   )}
                 </TableCell>
                 <TableCell>
-                  {p.access_type === "lifetime" ? "Vitalicio" : `${p.duration_days} dias`}
+                  {p.access_type === "lifetime" ? "Vitalício" : `${p.duration_days} dias`}
                 </TableCell>
                 <TableCell>
                   <Badge variant={p.is_active ? "default" : "secondary"}>
@@ -644,7 +644,7 @@ function ImageBotPremiumPlans() {
         <div>
           <h1 className="font-display text-3xl font-semibold">Planos Premium</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Crie quantos planos quiser. Eles aparecem no bot quando um usuario gratuito tenta
+            Crie quantos planos quiser. Eles aparecem no bot quando um usuário gratuito tenta
             favoritar.
           </p>
         </div>
@@ -671,7 +671,7 @@ function ImageBotPremiumPlans() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="premium_description">Descricao</Label>
+                <Label htmlFor="premium_description">Descrição</Label>
                 <Textarea
                   id="premium_description"
                   name="description"
@@ -701,7 +701,7 @@ function ImageBotPremiumPlans() {
                     onChange={(event) => setAccessType(event.target.value as "days" | "lifetime")}
                   >
                     <option value="days">Por dias</option>
-                    <option value="lifetime">Vitalicio</option>
+                    <option value="lifetime">Vitalício</option>
                   </select>
                 </div>
               </div>
@@ -729,13 +729,13 @@ function ImageBotPremiumPlans() {
                   <div>
                     <Label htmlFor="premium_allow_favorites">Libera favoritos</Label>
                     <p className="text-xs text-muted-foreground">
-                      Se desligar, este plano nao da acesso ao menu Favoritos.
+                      Se desligar, este plano não dá acesso ao menu Favoritos.
                     </p>
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="premium_media_cooldown_seconds">
-                    Delay entre midias (segundos)
+                    Delay entre mídias (segundos)
                   </Label>
                   <Input
                     id="premium_media_cooldown_seconds"
@@ -752,7 +752,7 @@ function ImageBotPremiumPlans() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="premium_daily_media_limit">Midias por dia</Label>
+                <Label htmlFor="premium_daily_media_limit">Mídias por dia</Label>
                 <Input
                   id="premium_daily_media_limit"
                   name="daily_media_limit"
@@ -796,7 +796,7 @@ function ImageBotPremiumPlans() {
               <TableHead>Preco</TableHead>
               <TableHead>Validade</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="text-right">Acoes</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -818,14 +818,14 @@ function ImageBotPremiumPlans() {
                     <Badge variant="outline">{plan.media_cooldown_seconds}s delay</Badge>
                     <Badge variant="outline">
                       {plan.daily_media_limit > 0
-                        ? `${plan.daily_media_limit} midias/dia`
+                        ? `${plan.daily_media_limit} mídias/dia`
                         : "Cota do plano gratis"}
                     </Badge>
                   </div>
                 </TableCell>
                 <TableCell className="font-medium">{brl(plan.price)}</TableCell>
                 <TableCell>
-                  {plan.access_type === "lifetime" ? "Vitalicio" : `${plan.access_days} dias`}
+                  {plan.access_type === "lifetime" ? "Vitalício" : `${plan.access_days} dias`}
                 </TableCell>
                 <TableCell>
                   <Badge variant={plan.is_active ? "default" : "secondary"}>
@@ -894,7 +894,7 @@ function FreePlanEditor({ settings }: { settings: ImageBotFreePlanSettings }) {
               <Badge variant="secondary">Padrao</Badge>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Regras aplicadas a todos que ainda nao possuem Premium. Administradores continuam sem
+              Regras aplicadas a todos que ainda não possuem Premium. Administradores continuam sem
               limite.
             </p>
           </div>
@@ -916,7 +916,7 @@ function FreePlanEditor({ settings }: { settings: ImageBotFreePlanSettings }) {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="free_daily_media_limit">Midias por dia</Label>
+            <Label htmlFor="free_daily_media_limit">Mídias por dia</Label>
             <Input
               id="free_daily_media_limit"
               name="daily_media_limit"
@@ -937,7 +937,7 @@ function FreePlanEditor({ settings }: { settings: ImageBotFreePlanSettings }) {
             defaultValue={settings.daily_limit_message}
           />
           <p className="text-xs text-muted-foreground">
-            Todo este texto aparece exatamente acima dos botoes dos planos Premium.
+            Todo este texto aparece exatamente acima dos botões dos planos Premium.
           </p>
         </div>
       </form>
@@ -988,7 +988,7 @@ function PremiumExpiryReminderEditor({ settings }: { settings: ImageBotFreePlanS
           <div>
             <h2 className="font-display text-xl font-semibold">Aviso de vencimento Premium</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Defina quantas vezes o usuario sera avisado e o intervalo entre cada envio. Os planos
+              Defina quantas vezes o usuário será avisado e o intervalo entre cada envio. Os planos
               ativos aparecem logo abaixo da mensagem.
             </p>
           </div>
@@ -1037,7 +1037,7 @@ function PremiumExpiryReminderEditor({ settings }: { settings: ImageBotFreePlanS
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="premium_offer_button_label">Texto do botao de acesso Premium</Label>
+          <Label htmlFor="premium_offer_button_label">Texto do botão de acesso Premium</Label>
           <Input
             id="premium_offer_button_label"
             name="premium_offer_button_label"
@@ -1045,7 +1045,7 @@ function PremiumExpiryReminderEditor({ settings }: { settings: ImageBotFreePlanS
             defaultValue={settings.premium_offer_button_label}
           />
           <p className="text-xs text-muted-foreground">
-            Este texto aparece no submenu fixo e junto com todas as midias enviadas.
+            Este texto aparece no submenu fixo e junto com todas as mídias enviadas.
           </p>
         </div>
 
@@ -1059,7 +1059,7 @@ function PremiumExpiryReminderEditor({ settings }: { settings: ImageBotFreePlanS
             defaultValue={settings.premium_expiry_warning_message}
           />
           <p className="text-xs text-muted-foreground">
-            Variaveis: {"{{nome}}"}, {"{{plano}}"}, {"{{dias}}"} e {"{{data}}"}.
+            Variáveis: {"{{nome}}"}, {"{{plano}}"}, {"{{dias}}"} e {"{{data}}"}.
           </p>
         </div>
       </form>

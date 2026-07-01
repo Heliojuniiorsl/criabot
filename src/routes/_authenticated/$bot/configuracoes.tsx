@@ -32,7 +32,7 @@ import { toast } from "sonner";
 import { useManagedBotPanel } from "@/lib/managed-bot-context";
 
 export const Route = createFileRoute("/_authenticated/$bot/configuracoes")({
-  component: Configuracoes,
+  component: Configurações,
 });
 
 type MenuAction = "plans" | "offers" | "myaccess" | "support" | "terms" | "text" | "url";
@@ -127,7 +127,7 @@ const imageBotSettingsSections: { value: ImageBotSettingsSection; label: string 
   { value: "test", label: "Teste" },
 ];
 
-function Configuracoes() {
+function Configurações() {
   const bot = useManagedBotPanel();
   return bot.kind === "images" ? <ImageBotSettings /> : <SalesBotSettings />;
 }
@@ -241,7 +241,7 @@ function ImageBotSettings() {
 
   return (
     <div className="max-w-4xl">
-      <h1 className="font-display text-3xl font-semibold">Configurações do UpMidias</h1>
+      <h1 className="font-display text-3xl font-semibold">Configurações do UpMídias</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Personalize a mensagem enviada quando alguém iniciar o bot.
       </p>
@@ -291,7 +291,7 @@ function ImageBotSettings() {
             <div>
               <h2 className="font-display text-lg font-semibold">Idiomas dos usuários</h2>
               <p className="text-sm text-muted-foreground">
-                O UpMidias detecta o idioma configurado no Telegram e permite a troca manual pelo
+                O UpMídias detecta o idioma configurado no Telegram e permite a troca manual pelo
                 teclado do bot.
               </p>
             </div>
@@ -488,7 +488,7 @@ function ImageBotSettings() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Botao de planos</Label>
+              <Label>Botão de planos</Label>
               <Select
                 value={autoMessagePlanMode}
                 onValueChange={(value) => {
@@ -500,7 +500,7 @@ function ImageBotSettings() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Sem botao de plano</SelectItem>
+                  <SelectItem value="none">Sem botão de plano</SelectItem>
                   <SelectItem value="all">Mostrar todos os planos</SelectItem>
                   <SelectItem value="single">Mostrar somente um plano</SelectItem>
                 </SelectContent>
@@ -684,7 +684,7 @@ function SalesBotSettings() {
     <div className="max-w-2xl">
       <h1 className="font-display text-3xl font-semibold">Configurações do bot</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Configure a mensagem e a midia exibidas quando o usuario inicia o bot.
+        Configure a mensagem e a mídia exibidas quando o usuário inicia o bot.
       </p>
 
       <Card className="mt-6 flex items-start gap-3 border-primary/30 bg-primary/5 p-4">
@@ -715,7 +715,7 @@ function SalesBotSettings() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="custom">Texto + foto ou video do painel</SelectItem>
+                <SelectItem value="custom">Texto + foto ou vídeo do painel</SelectItem>
                 <SelectItem value="telegram_message">Mensagem pronta do Telegram</SelectItem>
                 <SelectItem value="telegram_file">File ID do Telegram</SelectItem>
               </SelectContent>
@@ -734,15 +734,15 @@ function SalesBotSettings() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Foto ou video de boas-vindas</Label>
+                <Label>Foto ou vídeo de boas-vindas</Label>
                 <p className="text-xs text-muted-foreground">
-                  Envie uma foto ou video de ate 60 MB, ou cole um link publico.
+                  Envie uma foto ou vídeo de até 60 MB, ou cole um link público.
                 </p>
                 <ImageUpload
                   value={imageUrl}
                   onChange={setImageUrl}
                   accept="image/*,video/mp4,video/quicktime,video/webm"
-                  buttonLabel="Enviar foto ou video"
+                  buttonLabel="Enviar foto ou vídeo"
                   allowedKinds={["image", "video"]}
                   maxSizeMb={60}
                 />
@@ -803,8 +803,8 @@ function SalesBotSettings() {
               <div>
                 <p className="font-medium">Mensagem pronta do Telegram</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Informe o chat e o ID da mensagem. O bot copia foto, video, legenda ou texto e
-                  adiciona os botoes dos planos. Ele precisa ter acesso ao chat de origem.
+                  Informe o chat e o ID da mensagem. O bot copia foto, vídeo, legenda ou texto e
+                  adiciona os botões dos planos. Ele precisa ter acesso ao chat de origem.
                 </p>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -953,7 +953,7 @@ function EnvironmentSettingsPanel() {
       </div>
 
       <Card className="border-destructive/20 bg-destructive/5 p-4 text-sm text-muted-foreground">
-        O token mostrado aqui pertence somente ao bot aberto agora. O token do outro bot nao e
+        O token mostrado aqui pertence somente ao bot aberto agora. O token do outro bot não é
         enviado para esta tela.
       </Card>
 

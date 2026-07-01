@@ -102,11 +102,11 @@ function ImageBotPayments() {
     <div>
       <h1 className="font-display text-3xl font-semibold">Pagamentos</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Historico completo das transacoes do UpMidias.
+        Histórico completo das transações do UpMídias.
       </p>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard label="Transacoes" value={String(payments.length)} icon={CreditCard} />
+        <SummaryCard label="Transações" value={String(payments.length)} icon={CreditCard} />
         <SummaryCard label="Aprovadas" value={String(approved.length)} icon={CheckCircle2} />
         <SummaryCard label="Pendentes" value={String(pending)} icon={Clock3} />
         <SummaryCard label="Receita aprovada" value={formatCurrency(revenue)} icon={TrendingUp} />
@@ -119,7 +119,7 @@ function ImageBotPayments() {
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar usuario, Telegram ID, pedido ou pagamento..."
+              placeholder="Buscar usuário, Telegram ID, pedido ou pagamento..."
               className="pl-9"
             />
           </div>
@@ -152,13 +152,13 @@ function ImageBotPayments() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Usuario</TableHead>
+                <TableHead>Usuário</TableHead>
                 <TableHead>Produto</TableHead>
                 <TableHead>Valor</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Criado em</TableHead>
                 <TableHead>Pago em</TableHead>
-                <TableHead>Validade do beneficio</TableHead>
+                <TableHead>Validade do benefício</TableHead>
                 <TableHead>ID Mercado Pago</TableHead>
               </TableRow>
             </TableHeader>
@@ -232,7 +232,7 @@ function productLabel(payment: PaymentRow) {
     return payment.plan_name || "Plano Premium";
   }
   if (payment.product_type === "limit_upgrade") {
-    return `+${payment.bonus_count ?? 0} midias por dia`;
+    return `+${payment.bonus_count ?? 0} mídias por dia`;
   }
   return `Acesso ${payment.category === "hetero" ? "Hetero" : "Trans"}`;
 }
@@ -240,10 +240,10 @@ function productLabel(payment: PaymentRow) {
 function benefitValidity(payment: PaymentRow) {
   if (payment.status !== "paid") return "-";
   if (payment.product_type === "limit_upgrade" && payment.access_type === "lifetime") {
-    return "Vitalicio";
+    return "Vitalício";
   }
   if (payment.product_type === "premium_plan" && payment.access_type === "lifetime") {
-    return "Vitalicio";
+    return "Vitalício";
   }
   return formatDate(payment.benefit_expires_at);
 }

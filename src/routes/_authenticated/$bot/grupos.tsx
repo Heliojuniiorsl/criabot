@@ -319,7 +319,7 @@ function ImageBotGroups() {
     onSuccess: () => {
       setSelectedGroup(null);
       qc.invalidateQueries({ queryKey: ["image-bot-groups"] });
-      toast.success("UpMidias removido do grupo ou canal");
+      toast.success("UpMídias removido do grupo ou canal");
     },
     onError: (error: any) => toast.error(error.message),
   });
@@ -431,7 +431,7 @@ function ImageBotGroups() {
         <div>
           <h1 className="font-display text-3xl font-semibold">Grupos e canais</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Grupos em que o UpMidias está presente. Gerencie automações por grupo sem misturar com o
+            Grupos em que o UpMídias está presente. Gerencie automações por grupo sem misturar com o
             bot de vendas.
           </p>
         </div>
@@ -487,7 +487,7 @@ function ImageBotGroups() {
             <div>
               <div className="font-medium">Permita que o bot receba todas as mídias</div>
               <p className="mt-1 text-sm">
-                Torne o UpMidias administrador nos grupos Hetero e Trans. Assim o Telegram entrega
+                Torne o UpMídias administrador nos grupos Hetero e Trans. Assim o Telegram entrega
                 ao bot todas as fotos e vídeos encaminhados para serem salvos.
               </p>
             </div>
@@ -512,7 +512,7 @@ function ImageBotGroups() {
             {!groups.length && (
               <TableRow>
                 <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
-                  Adicione o UpMidias a um grupo. Assim que o Telegram avisar a entrada ou houver
+                  Adicione o UpMídias a um grupo. Assim que o Telegram avisar a entrada ou houver
                   atividade, o grupo aparecerá aqui.
                 </TableCell>
               </TableRow>
@@ -573,7 +573,7 @@ function ImageBotGroups() {
                       onClick={() => {
                         if (
                           confirm(
-                            `Remover o UpMidias de "${group.title}"? O bot sairá do grupo ou canal.`,
+                            `Remover o UpMídias de "${group.title}"? O bot sairá do grupo ou canal.`,
                           )
                         ) {
                           leaveGroup.mutate(group.id);
@@ -722,7 +722,7 @@ function ImageBotGroups() {
         <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>
-              {editing ? "Editar automação do UpMidias" : "Nova automação do UpMidias"}
+              {editing ? "Editar automação do UpMídias" : "Nova automação do UpMídias"}
             </DialogTitle>
           </DialogHeader>
           <form
@@ -902,7 +902,7 @@ function ImageBotGroups() {
                   disabled={automationButtons.length >= 6}
                 >
                   <Plus className="mr-1 h-3 w-3" />
-                  Botao
+                  Botão
                 </Button>
               </div>
               {!automationButtons.length && (
@@ -917,7 +917,7 @@ function ImageBotGroups() {
                       onChange={(event) =>
                         updateImageAutomationButton(index, { label: event.target.value })
                       }
-                      placeholder="Texto do botao"
+                      placeholder="Texto do botão"
                     />
                     <Button
                       type="button"
@@ -982,7 +982,7 @@ function ImageBotGroups() {
                         onChange={(event) =>
                           updateImageAutomationButton(index, { url: event.target.value })
                         }
-                        placeholder="https://t.me/usuario_do_bot"
+                        placeholder="https://t.me/usuário_do_bot"
                         required
                       />
                       <p className="text-xs text-muted-foreground">
@@ -1167,7 +1167,7 @@ function SalesBotGroups() {
     }
     const invalidBot = buttons.find((button) => button.kind === "bot" && !button.url);
     if (invalidBot) {
-      toast.error(`O botão "${invalidBot.label}" precisa do @usuario ou link t.me do bot`);
+      toast.error(`O botão "${invalidBot.label}" precisa do @usuário ou link t.me do bot`);
       return;
     }
     saveMessage.mutate({

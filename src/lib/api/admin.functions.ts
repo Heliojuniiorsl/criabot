@@ -1,4 +1,4 @@
-﻿import { createServerFn } from "@tanstack/react-start";
+import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getRequest } from "@tanstack/react-start/server";
 import { randomUUID } from "node:crypto";
@@ -74,7 +74,7 @@ function friendlyVipChatError(error: unknown) {
     return "Este bot foi removido desse grupo/canal. Adicione o bot novamente e promova como administrador.";
   }
   if (lower.includes("chat not found") || lower.includes("member not found")) {
-    return "Nao encontrei esse grupo/canal para este bot. Confira o ID e adicione o bot ao grupo/canal.";
+    return "Não encontrei esse grupo/canal para este bot. Confira o ID e adicione o bot ao grupo/canal.";
   }
   if (lower.includes("not enough rights") || lower.includes("not administrator")) {
     return "O bot esta no grupo/canal, mas precisa ser promovido a administrador.";
@@ -83,9 +83,9 @@ function friendlyVipChatError(error: unknown) {
     return "O Telegram bloqueou a consulta. Adicione o bot ao grupo/canal e promova como administrador.";
   }
   if (lower.includes("bad request")) {
-    return "Nao consegui consultar esse grupo/canal. Confira se o ID esta correto.";
+    return "Não consegui consultar esse grupo/canal. Confira se o ID está correto.";
   }
-  return "Nao consegui verificar esse grupo/canal VIP. Confira se o bot esta nele e tente novamente.";
+  return "Não consegui verificar esse grupo/canal VIP. Confira se o bot está nele e tente novamente.";
 }
 
 async function admin() {
@@ -99,7 +99,7 @@ async function admin() {
       const bot = findManagedSalesBotByUsername(routeUsername);
       if (bot) {
         if (session.role !== "admin" && bot.owner_account_id !== session.id) {
-          throw new Error("Esse bot nao pertence a sua conta");
+          throw new Error("Esse bot não pertence à sua conta");
         }
         enterSalesBotRuntime(managedSalesBotRuntime(bot));
         return localDb;
@@ -123,7 +123,7 @@ const uploadSchema = z.object({
     .string()
     .regex(
       /^(image\/(jpeg|jpg|png|webp|gif)|video\/(mp4|quicktime|webm))$/,
-      "Tipo de midia invalido",
+      "Tipo de mídia invalido",
     ),
   // base64 (sem o prefixo data:) do arquivo
   dataBase64: z.string().min(1).max(90_000_000),
@@ -317,7 +317,7 @@ export const runManagedBotAction = createServerFn({ method: "POST" })
     if (session.role !== "admin") {
       const bot = findManagedSalesBotByKey(data.key);
       if (!bot || bot.owner_account_id !== session.id) {
-        throw new Error("Esse bot nao pertence a sua conta");
+        throw new Error("Esse bot não pertence à sua conta");
       }
     }
     return controlManagedBot(data.key, data.action);
@@ -337,7 +337,7 @@ export const validateManagedSalesBotToken = createServerFn({ method: "POST" })
       const info = await getBotInfoWithToken(token);
       const username = String(info.username ?? "").trim();
       if (!username) {
-        throw new Error("Esse bot nao possui @username. Configure o username no BotFather.");
+        throw new Error("Esse bot não possui @username. Configure o username no BotFather.");
       }
 
       const existing = findManagedSalesBotByUsername(username);
@@ -409,7 +409,7 @@ export const verifyManagedSalesBotVipChat = createServerFn({ method: "POST" })
         member_count: null,
         message:
           chatPreview != null
-            ? "Grupo/canal encontrado, mas o bot nao esta participando ou nao pode ser consultado."
+            ? "Grupo/canal encontrado, mas o bot não está participando ou não pode ser consultado."
             : memberErrorMessage || friendlyVipChatError(null),
       };
     }
@@ -426,8 +426,8 @@ export const verifyManagedSalesBotVipChat = createServerFn({ method: "POST" })
         is_admin: false,
         member_count: null,
         message: botIsInChat
-          ? "Grupo/canal encontrado. O bot esta nele, mas precisa ser administrador para entregar o acesso."
-          : "Grupo/canal encontrado, mas o bot nao esta participando. Adicione o bot e promova como administrador.",
+          ? "Grupo/canal encontrado. O bot está nele, mas precisa ser administrador para entregar o acesso."
+          : "Grupo/canal encontrado, mas o bot não está participando. Adicione o bot e promova como administrador.",
       };
     }
     const memberCount = await getChatMemberCountWithToken(token, data.vip_chat_id).catch(
@@ -564,7 +564,7 @@ const imageBotSettingsSchema = z
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["auto_message_plan_id"],
-        message: "Selecione o plano da mensagem automatica",
+        message: "Selecione o plano da mensagem automática",
       });
     }
   });
@@ -584,7 +584,7 @@ export const saveImageBotSettings = createServerFn({ method: "POST" })
             (item) => item.id === data.auto_message_plan_id,
           )
         : null;
-      if (!plan) throw new Error("O plano da mensagem automatica nao esta ativo");
+      if (!plan) throw new Error("O plano da mensagem automática não está ativo");
     }
     updateImageBotSettings({
       id: data.id,
@@ -648,7 +648,7 @@ export const saveImageBotFreePlanSettings = createServerFn({ method: "POST" })
     const session = requireAdminSession();
     updateImageBotSettings({
       ...data,
-      // Scheduling was removed: UpMidias is available 24/7 unless maintenance is enabled.
+      // Scheduling was removed: UpMídias is available 24/7 unless maintenance is enabled.
       operating_hours_enabled: false,
     });
     recordImageBotAuditLog({
@@ -751,7 +751,7 @@ export const deleteImageBotPremiumPlanAdmin = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const session = requireAdminSession();
     if (!deleteImageBotPremiumPlan(data.id, session.email)) {
-      throw new Error("Plano Premium nao encontrado");
+      throw new Error("Plano Premium não encontrado");
     }
     return { ok: true };
   });
@@ -866,8 +866,8 @@ export const exportImageBotUsersCsv = createServerFn({ method: "GET" }).handler(
       user.selected_category ?? "menu_inicial",
       user.media_delivered_count,
       user.favorite_count,
-      user.is_premium ? "sim" : "nao",
-      user.is_telegram_premium ? "sim" : "nao",
+      user.is_premium ? "sim" : "não",
+      user.is_telegram_premium ? "sim" : "não",
       user.payment_count,
       user.total_paid,
       user.first_started_at,
@@ -990,10 +990,10 @@ export const exportImageBotDatabaseBackup = createServerFn({ method: "GET" }).ha
     actorId: session.email,
     action: "database.backup.export",
     entityType: "database",
-    entityId: "upmidias",
+    entityId: "upmídias",
   });
   return {
-    filename: `upmidias-backup-${new Date().toISOString().slice(0, 10)}.sqlite`,
+    filename: `upmídias-backup-${new Date().toISOString().slice(0, 10)}.sqlite`,
     data_base64: dataBase64,
   };
 });
@@ -1047,7 +1047,7 @@ export const restoreImageBotDatabaseBackup = createServerFn({ method: "POST" })
         const exists = source
           .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
           .get(table);
-        if (!exists) throw new Error("Backup inválido para o banco do UpMidias");
+        if (!exists) throw new Error("Backup inválido para o banco do UpMídias");
       }
       source.close();
       source = null;
@@ -1106,11 +1106,11 @@ export const leaveTelegramGroup = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await admin();
     const group = getTelegramGroups().find((item) => item.id === data.group_id);
-    if (!group) throw new Error("Grupo ou canal nao encontrado");
+    if (!group) throw new Error("Grupo ou canal não encontrado");
     if (!group.is_active) return group;
 
     const token = getActiveSalesBotToken();
-    if (!token) throw new Error("Token do bot de vendas nao configurado");
+    if (!token) throw new Error("Token do bot de vendas não configurado");
     await leaveChatWithToken(token, group.telegram_chat_id);
 
     return upsertTelegramGroup({
@@ -1173,11 +1173,11 @@ export const leaveImageBotGroup = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await admin();
     const group = getImageBotGroups().find((item) => item.id === data.group_id);
-    if (!group) throw new Error("Grupo do UpMidias nao encontrado");
+    if (!group) throw new Error("Grupo do UpMídias não encontrado");
     if (!group.is_active) return group;
 
     const token = getManagedBotToken("images");
-    if (!token) throw new Error("Token do UpMidias nao configurado");
+    if (!token) throw new Error("Token do UpMídias não configurado");
     await leaveChatWithToken(token, group.telegram_chat_id);
 
     const updated = upsertImageBotGroup({
@@ -1317,7 +1317,7 @@ export const saveImageBotGroupAutomation = createServerFn({ method: "POST" })
     );
     for (const button of data.buttons) {
       if (button.kind === "premium_plan" && !activePlanIds.has(button.plan_id)) {
-        throw new Error(`O plano do botao "${button.label}" nao esta ativo`);
+        throw new Error(`O plano do botão "${button.label}" não está ativo`);
       }
     }
     if (data.content_kind === "saved_media" && data.saved_media_id) {
@@ -1413,7 +1413,7 @@ const groupBroadcastButtonSchema = z.discriminatedUnion("kind", [
         (value) =>
           /^@?[A-Za-z0-9_]{5,32}$/.test(value) ||
           /^https?:\/\/(?:t|telegram)\.me\/[A-Za-z0-9_]{5,32}(?:[/?#].*)?$/i.test(value),
-        "Informe o @usuario ou link t.me do bot",
+        "Informe o @usuário ou link t.me do bot",
       ),
     plan_id: z.null().optional(),
   }),
@@ -1446,7 +1446,7 @@ const groupBroadcastSchema = z
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["message"],
-        message: "Informe o texto, uma foto ou um video",
+        message: "Informe o texto, uma foto ou um vídeo",
       });
     }
   });
@@ -1480,7 +1480,7 @@ export const saveGroupBroadcast = createServerFn({ method: "POST" })
       const plan = sqlite
         .prepare("SELECT id FROM plans WHERE id = ? AND is_active = 1")
         .get(button.plan_id);
-      if (!plan) throw new Error(`O plano do botao "${button.label}" nao esta ativo`);
+      if (!plan) throw new Error(`O plano do botão "${button.label}" não está ativo`);
     }
     const { id, ...fields } = data;
     if (id) {
@@ -1670,7 +1670,7 @@ export const reorderPlan = createServerFn({ method: "POST" })
       )
       .all() as Array<{ id: string }>;
     const index = rows.findIndex((plan) => plan.id === data.id);
-    if (index === -1) throw new Error("Plano nao encontrado");
+    if (index === -1) throw new Error("Plano não encontrado");
     const targetIndex = data.direction === "up" ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= rows.length) return { ok: true };
 
@@ -1862,7 +1862,7 @@ export const getCustomerDetails = createServerFn({ method: "GET" })
     const customer = sqlite.prepare("SELECT * FROM users WHERE id = ?").get(data.id) as
       | Record<string, any>
       | undefined;
-    if (!customer) throw new Error("Cliente nao encontrado");
+    if (!customer) throw new Error("Cliente não encontrado");
     const subscriptions = sqlite
       .prepare(
         `SELECT s.*, p.name AS plan_name FROM subscriptions s
@@ -1913,7 +1913,7 @@ export const updateCustomer = createServerFn({ method: "POST" })
     const current = sqlite.prepare("SELECT is_blocked FROM users WHERE id = ?").get(data.id) as
       | Record<string, any>
       | undefined;
-    if (!current) throw new Error("Cliente nao encontrado");
+    if (!current) throw new Error("Cliente não encontrado");
     sqlite
       .prepare(
         `UPDATE users SET email = ?, notes = ?, tags = ?, is_blocked = ?, updated_at = ? WHERE id = ?`,
@@ -1963,7 +1963,7 @@ export const manageCustomerAccess = createServerFn({ method: "POST" })
       const plan = sqlite.prepare("SELECT * FROM plans WHERE id = ?").get(data.plan_id) as
         | Record<string, any>
         | undefined;
-      if (!plan) throw new Error("Plano nao encontrado");
+      if (!plan) throw new Error("Plano não encontrado");
       const isLifetime = plan.access_type === "lifetime";
       const days = data.days ?? Number(plan.duration_days);
       sqlite
@@ -1985,17 +1985,17 @@ export const manageCustomerAccess = createServerFn({ method: "POST" })
           now.toISOString(),
         );
       description = isLifetime
-        ? `Acesso liberado: ${plan.name} vitalicio`
+        ? `Acesso liberado: ${plan.name} vitalício`
         : `Acesso liberado: ${plan.name} por ${days} dias`;
     } else {
-      if (!data.subscription_id) throw new Error("Acesso nao informado");
+      if (!data.subscription_id) throw new Error("Acesso não informado");
       const subscription = sqlite
         .prepare(
           `SELECT s.*, p.name AS plan_name FROM subscriptions s
            LEFT JOIN plans p ON p.id = s.plan_id WHERE s.id = ? AND s.user_id = ?`,
         )
         .get(data.subscription_id, data.user_id) as Record<string, any> | undefined;
-      if (!subscription) throw new Error("Acesso nao encontrado");
+      if (!subscription) throw new Error("Acesso não encontrado");
       if (data.action === "extend") {
         const days = data.days ?? 30;
         const base = Math.max(now.getTime(), Date.parse(subscription.end_date));
@@ -2020,8 +2020,8 @@ export const manageCustomerAccess = createServerFn({ method: "POST" })
           .prepare("UPDATE subscriptions SET auto_renew = ?, updated_at = ? WHERE id = ?")
           .run(data.auto_renew ? 1 : 0, now.toISOString(), subscription.id);
         description = data.auto_renew
-          ? `Renovacao automatica ativada: ${subscription.plan_name ?? "Plano"}`
-          : `Renovacao automatica desativada: ${subscription.plan_name ?? "Plano"}`;
+          ? `Renovacao automática ativada: ${subscription.plan_name ?? "Plano"}`
+          : `Renovacao automática desativada: ${subscription.plan_name ?? "Plano"}`;
       }
     }
     recordCustomerEvent(data.user_id, `access_${data.action}`, description);
@@ -2050,7 +2050,7 @@ export const syncOrderPayment = createServerFn({ method: "POST" })
       .eq("order_id", data.id)
       .maybeSingle();
     if (!payment?.provider_payment_id) {
-      throw new Error("O Mercado Pago ainda nÃ£o informou um pagamento para este pedido");
+      throw new Error("O Mercado Pago ainda não informou um pagamento para este pedido");
     }
     const { getMercadoPagoPayment } = await import("@/lib/mercado-pago.server");
     const remote = await getMercadoPagoPayment(payment.provider_payment_id);
@@ -2141,7 +2141,7 @@ const broadcastSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["message"],
-        message: "Informe o texto, uma foto ou um video para a mensagem",
+        message: "Informe o texto, uma foto ou um vídeo para a mensagem",
       });
     }
     if (value.content_kind === "telegram_message") {
@@ -2174,7 +2174,7 @@ export const saveBroadcast = createServerFn({ method: "POST" })
       const plan = sqlite
         .prepare("SELECT id FROM plans WHERE id = ? AND is_active = 1")
         .get(button.plan_id);
-      if (!plan) throw new Error(`O plano do botao "${button.label}" nao esta ativo`);
+      if (!plan) throw new Error(`O plano do botão "${button.label}" não está ativo`);
     }
     const { id, ...rawFields } = data;
     const fields = {
@@ -2219,7 +2219,7 @@ export const sendBroadcastNow = createServerFn({ method: "POST" })
       .select("*")
       .eq("id", data.id)
       .single();
-    if (error || !b) throw new Error("Mensagem nÃ£o encontrada");
+    if (error || !b) throw new Error("Mensagem não encontrada");
     const sent = await sendBroadcast(sb, b);
     return { ok: true, sent };
   });

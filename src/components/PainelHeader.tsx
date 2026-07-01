@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 const painelNav = [
   { to: "/painel/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/painel/bots", label: "Bots", icon: Bot },
-  { to: "/painel/config", label: "Configuracao", icon: Settings },
+  { to: "/painel/config", label: "Configuração", icon: Settings },
   { to: "/painel/perfil", label: "Perfil", icon: UserRound },
 ] as const;
 
@@ -41,7 +41,7 @@ export function PainelHeader({ forceActiveTo }: { forceActiveTo?: string }) {
           className="shrink-0 rounded-2xl outline-none transition focus-visible:ring-2 focus-visible:ring-primary"
           onClick={() => setMobileOpen(false)}
         >
-          <BrandMark subtitle="Area administrativa" imageClassName="h-10 w-10 rounded-xl" />
+          <BrandMark subtitle="Área administrativa" imageClassName="h-10 w-10 rounded-xl" />
         </Link>
 
         <nav className="ml-auto hidden items-center gap-2 md:flex">

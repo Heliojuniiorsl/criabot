@@ -132,7 +132,7 @@ function Pedidos() {
                       onClick={() => {
                         if (
                           window.confirm(
-                            "Remover esta transacao da lista? O registro fica preservado no banco, mas nao aparece mais aqui.",
+                            "Remover esta transação da lista? O registro fica preservado no banco, mas não aparece mais aqui.",
                           )
                         ) {
                           hide.mutate(o.id);

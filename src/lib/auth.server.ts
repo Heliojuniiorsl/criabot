@@ -133,13 +133,13 @@ export function getCurrentAdmin() {
 
 export function requireAdminSession() {
   const admin = getCurrentAdmin();
-  if (!admin) throw new Error("Nao autenticado");
+  if (!admin) throw new Error("Não autenticado");
   if (admin.role !== "admin") throw new Error("Acesso restrito ao administrador da plataforma");
   return admin;
 }
 
 export function requireAccountSession() {
   const account = getCurrentAdmin();
-  if (!account) throw new Error("Nao autenticado");
+  if (!account) throw new Error("Não autenticado");
   return account;
 }

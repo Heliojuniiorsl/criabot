@@ -101,7 +101,7 @@ function formatPixExpiration(expiresAt: string | null) {
 
 function limitBoostValidityLabel(order: ImageBotLimitPaymentOrder) {
   return order.access_type === "lifetime"
-    ? "vitalicio"
+    ? "vitalício"
     : `${Math.max(1, order.access_days)} dia${order.access_days === 1 ? "" : "s"}`;
 }
 
@@ -244,7 +244,7 @@ export async function createImageBotPixOrder(input: {
   const settings = getImageBotSettings();
   const amount = imageBotCategoryPrice(settings, input.category);
   if (!settings.payment_enabled || amount <= 0) {
-    throw new Error("Pagamento nao esta ativo para esta categoria");
+    throw new Error("Pagamento não está ativo para esta categoria");
   }
 
   const pending = getPendingPaymentOrder(input.telegramUserId, input.category, amount);
@@ -261,7 +261,7 @@ export async function createImageBotPixOrder(input: {
     )
     .get(input.telegramUserId, recentSince) as { total: number };
   if (Number(recent.total) >= 5) {
-    throw new Error("Voce gerou muitos Pix pendentes. Aguarde alguns minutos.");
+    throw new Error("Você gerou muitos Pix pendentes. Aguarde alguns minutos.");
   }
 
   const orderId = randomUUID();
@@ -269,7 +269,7 @@ export async function createImageBotPixOrder(input: {
   const expiresAt = new Date(Date.now() + PIX_VALIDITY_MINUTES * 60_000).toISOString();
   const label = imageBotCategoryLabel(settings, input.category);
   const publicBaseUrl = process.env.PUBLIC_BASE_URL;
-  if (!publicBaseUrl) throw new Error("PUBLIC_BASE_URL nao configurado");
+  if (!publicBaseUrl) throw new Error("PUBLIC_BASE_URL não configurado");
 
   imageBotSqlite
     .prepare(
@@ -283,7 +283,7 @@ export async function createImageBotPixOrder(input: {
     const pix = await createPixPayment({
       orderId,
       externalReference: `image:${orderId}`,
-      title: `UpMidias - ${label}`,
+      title: `UpMídias - ${label}`,
       amount,
       payerEmail: `telegram-${input.telegramUserId}@example.com`,
       payerName: input.payerName || `Telegram ${input.telegramUserId}`,
@@ -327,7 +327,7 @@ export async function createImageBotLimitBoostPixOrder(input: {
   const accessDays =
     accessType === "lifetime" ? 0 : Math.max(1, settings.limit_upgrade_access_days);
   if (!settings.limit_upgrade_enabled || amount <= 0) {
-    throw new Error("Compra de limite nao esta ativa");
+    throw new Error("Compra de limite não está ativa");
   }
   const pending = getPendingLimitBoostOrder({
     telegramUserId: input.telegramUserId,
@@ -349,14 +349,14 @@ export async function createImageBotLimitBoostPixOrder(input: {
     )
     .get(input.telegramUserId, recentSince) as { total: number };
   if (Number(recent.total) >= 5) {
-    throw new Error("Voce gerou muitos Pix pendentes. Aguarde alguns minutos.");
+    throw new Error("Você gerou muitos Pix pendentes. Aguarde alguns minutos.");
   }
 
   const orderId = randomUUID();
   const now = new Date().toISOString();
   const expiresAt = new Date(Date.now() + PIX_VALIDITY_MINUTES * 60_000).toISOString();
   const publicBaseUrl = process.env.PUBLIC_BASE_URL;
-  if (!publicBaseUrl) throw new Error("PUBLIC_BASE_URL nao configurado");
+  if (!publicBaseUrl) throw new Error("PUBLIC_BASE_URL não configurado");
 
   imageBotSqlite
     .prepare(
@@ -381,7 +381,7 @@ export async function createImageBotLimitBoostPixOrder(input: {
     const pix = await createPixPayment({
       orderId,
       externalReference: `image-limit:${orderId}`,
-      title: `UpMidias - mais ${bonusCount} midias hoje`,
+      title: `UpMídias - mais ${bonusCount} mídias hoje`,
       amount,
       payerEmail: `telegram-${input.telegramUserId}@example.com`,
       payerName: input.payerName || `Telegram ${input.telegramUserId}`,
@@ -438,14 +438,14 @@ export async function createImageBotPremiumPixOrder(input: {
     )
     .get(input.telegramUserId, recentSince) as { total: number };
   if (Number(recent.total) >= 5) {
-    throw new Error("Voce gerou muitos Pix pendentes. Aguarde alguns minutos.");
+    throw new Error("Você gerou muitos Pix pendentes. Aguarde alguns minutos.");
   }
 
   const orderId = randomUUID();
   const now = new Date().toISOString();
   const expiresAt = new Date(Date.now() + PIX_VALIDITY_MINUTES * 60_000).toISOString();
   const publicBaseUrl = process.env.PUBLIC_BASE_URL;
-  if (!publicBaseUrl) throw new Error("PUBLIC_BASE_URL nao configurado");
+  if (!publicBaseUrl) throw new Error("PUBLIC_BASE_URL não configurado");
 
   imageBotSqlite
     .prepare(
@@ -471,7 +471,7 @@ export async function createImageBotPremiumPixOrder(input: {
     const pix = await createPixPayment({
       orderId,
       externalReference: `image-premium:${orderId}`,
-      title: `UpMidias Premium - ${plan.name}`,
+      title: `UpMídias Premium - ${plan.name}`,
       amount,
       payerEmail: `telegram-${input.telegramUserId}@example.com`,
       payerName: input.payerName || `Telegram ${input.telegramUserId}`,
@@ -510,7 +510,7 @@ export async function sendImageBotPixOrder(input: {
   order: ImageBotPaymentOrder;
   settings: ImageBotSettingsRow;
 }) {
-  if (!input.order.pix_qr_code) throw new Error("Pix nao encontrado");
+  if (!input.order.pix_qr_code) throw new Error("Pix não encontrado");
   const category = imageBotCategoryLabel(input.settings, input.order.category);
   const price = formatCurrency(Number(input.order.amount));
   const keyboard: InlineKeyboard = [
@@ -550,7 +550,7 @@ export async function sendImageBotLimitBoostPixOrder(input: {
   chatId: number;
   order: ImageBotLimitPaymentOrder;
 }) {
-  if (!input.order.pix_qr_code) throw new Error("Pix nao encontrado");
+  if (!input.order.pix_qr_code) throw new Error("Pix não encontrado");
   const price = formatCurrency(Number(input.order.amount));
   const keyboard: InlineKeyboard = [
     [{ text: "Copiar Pix copia e cola", copy_text: { text: input.order.pix_qr_code } }],
@@ -560,9 +560,9 @@ export async function sendImageBotLimitBoostPixOrder(input: {
   const response = await sendMessageWithToken(
     input.token,
     input.chatId,
-    `<b>Pix gerado</b>\n\n<b>Pacote:</b> +${input.order.bonus_count} midias por dia\n<b>Validade do beneficio:</b> ${limitBoostValidityLabel(
+    `<b>Pix gerado</b>\n\n<b>Pacote:</b> +${input.order.bonus_count} mídias por dia\n<b>Validade do benefício:</b> ${limitBoostValidityLabel(
       input.order,
-    )}\n<b>Valor:</b> ${price}\n\nAssim que o pagamento aprovar, seu limite diario aumenta automaticamente.\n\n<b>Pix copia e cola:</b>\n<code>${escapeHtml(
+    )}\n<b>Valor:</b> ${price}\n\nAssim que o pagamento aprovar, seu limite diário aumenta automaticamente.\n\n<b>Pix copia e cola:</b>\n<code>${escapeHtml(
       input.order.pix_qr_code,
     )}</code>\n\nPix valido ate ${formatPixExpiration(input.order.expires_at)}.`,
     safeKeyboard,
@@ -585,17 +585,17 @@ export async function sendImageBotPremiumPixOrder(input: {
   order: ImageBotPremiumPaymentOrder;
   messageId?: number;
 }) {
-  if (!input.order.pix_qr_code) throw new Error("Pix nao encontrado");
+  if (!input.order.pix_qr_code) throw new Error("Pix não encontrado");
   const price = formatCurrency(Number(input.order.amount));
   const validity =
     input.order.access_type === "lifetime"
-      ? "Vitalicio"
+      ? "Vitalício"
       : `${input.order.access_days} dia${input.order.access_days === 1 ? "" : "s"}`;
   const plan = input.order.plan_id ? getImageBotPremiumPlan(input.order.plan_id) : null;
   const approvalMessage =
     plan?.allow_favorites === false
-      ? "Depois da aprovacao, o plano sera liberado automaticamente."
-      : "Depois da aprovacao, os favoritos serao liberados automaticamente.";
+      ? "Depois da aprovação, o plano será liberado automaticamente."
+      : "Depois da aprovação, os favoritos serão liberados automaticamente.";
   const copyRow: InlineKeyboard[number] = [
     { text: "Copiar Pix copia e cola", copy_text: { text: input.order.pix_qr_code } },
   ];
@@ -670,7 +670,7 @@ export async function sendImageBotPixQrCode(input: {
   const order = imageBotSqlite
     .prepare("SELECT * FROM payment_orders WHERE id = ? AND telegram_user_id = ?")
     .get(input.orderId, input.telegramUserId) as ImageBotPaymentOrder | undefined;
-  if (!order?.pix_qr_code) throw new Error("Pix nao encontrado");
+  if (!order?.pix_qr_code) throw new Error("Pix não encontrado");
 
   const keyboard: InlineKeyboard = [
     [{ text: "Copiar Pix copia e cola", copy_text: { text: order.pix_qr_code } }],
@@ -681,7 +681,7 @@ export async function sendImageBotPixQrCode(input: {
     input.token,
     input.chatId,
     qrCode,
-    `upmidias-pix-${order.id}.png`,
+    `upmídias-pix-${order.id}.png`,
     `<b>QR Code Pix</b>\n\n<b>Valor:</b> ${formatCurrency(Number(order.amount))}`,
     safeKeyboard,
   );
@@ -696,7 +696,7 @@ export async function sendImageBotLimitBoostPixQrCode(input: {
   const order = imageBotSqlite
     .prepare("SELECT * FROM limit_payment_orders WHERE id = ? AND telegram_user_id = ?")
     .get(input.orderId, input.telegramUserId) as ImageBotLimitPaymentOrder | undefined;
-  if (!order?.pix_qr_code) throw new Error("Pix nao encontrado");
+  if (!order?.pix_qr_code) throw new Error("Pix não encontrado");
 
   const keyboard: InlineKeyboard = [
     [{ text: "Copiar Pix copia e cola", copy_text: { text: order.pix_qr_code } }],
@@ -707,8 +707,8 @@ export async function sendImageBotLimitBoostPixQrCode(input: {
     input.token,
     input.chatId,
     qrCode,
-    `upmidias-limite-${order.id}.png`,
-    `<b>QR Code Pix</b>\n\n<b>Pacote:</b> mais ${order.bonus_count} midias hoje\n<b>Valor:</b> ${formatCurrency(
+    `upmídias-limite-${order.id}.png`,
+    `<b>QR Code Pix</b>\n\n<b>Pacote:</b> mais ${order.bonus_count} mídias hoje\n<b>Valor:</b> ${formatCurrency(
       Number(order.amount),
     )}`,
     safeKeyboard,
@@ -724,7 +724,7 @@ export async function sendImageBotPremiumPixQrCode(input: {
   const order = imageBotSqlite
     .prepare("SELECT * FROM premium_payment_orders WHERE id = ? AND telegram_user_id = ?")
     .get(input.orderId, input.telegramUserId) as ImageBotPremiumPaymentOrder | undefined;
-  if (!order?.pix_qr_code) throw new Error("Pix nao encontrado");
+  if (!order?.pix_qr_code) throw new Error("Pix não encontrado");
 
   const keyboard: InlineKeyboard = [
     [{ text: "Copiar Pix copia e cola", copy_text: { text: order.pix_qr_code } }],
@@ -735,7 +735,7 @@ export async function sendImageBotPremiumPixQrCode(input: {
     input.token,
     input.chatId,
     qrCode,
-    `upmidias-premium-${order.id}.png`,
+    `upmídias-premium-${order.id}.png`,
     `<b>QR Code Pix Premium</b>\n\n<b>Plano:</b> ${escapeHtml(
       order.plan_name,
     )}\n<b>Valor:</b> ${formatCurrency(Number(order.amount))}`,
@@ -757,10 +757,10 @@ export async function fulfillImageBotPayment(input: {
   const order = imageBotSqlite
     .prepare("SELECT * FROM payment_orders WHERE id = ?")
     .get(input.orderId) as ImageBotPaymentOrder | undefined;
-  if (!order) throw new Error("Pedido do UpMidias nao encontrado");
+  if (!order) throw new Error("Pedido do UpMídias não encontrado");
   if (order.status === "paid") return { ok: true, orderId: order.id, alreadyPaid: true };
   if (Math.round(Number(order.amount) * 100) !== Math.round(Number(input.amount) * 100)) {
-    throw new Error("Valor pago diferente do pedido UpMidias");
+    throw new Error("Valor pago diferente do pedido UpMídias");
   }
 
   const expiresAt = imageBotSqlite.transaction(() => {
@@ -824,7 +824,7 @@ export async function fulfillImageBotPayment(input: {
       order.telegram_user_id,
       `<b>${escapeHtml(success)}</b>\n\nValido ate ${expiresAt.toLocaleDateString(
         "pt-BR",
-      )}. Toque em ${escapeHtml(category)} no menu e escolha fotos, videos ou aleatorio.`,
+      )}. Toque em ${escapeHtml(category)} no menu e escolha fotos, vídeos ou aleatorio.`,
     ).catch((error) => console.warn("[image-payment-confirmation]", error));
 
     if (order.telegram_chat_id && order.telegram_message_id) {
@@ -855,12 +855,12 @@ export async function fulfillImageBotLimitBoostPayment(input: {
   const order = imageBotSqlite
     .prepare("SELECT * FROM limit_payment_orders WHERE id = ?")
     .get(input.orderId) as ImageBotLimitPaymentOrder | undefined;
-  if (!order) throw new Error("Pedido de limite do UpMidias nao encontrado");
+  if (!order) throw new Error("Pedido de limite do UpMídias não encontrado");
   if (order.status === "paid") {
     return { ok: true, orderId: order.id, bonusCount: order.bonus_count, alreadyPaid: true };
   }
   if (Math.round(Number(order.amount) * 100) !== Math.round(Number(input.amount) * 100)) {
-    throw new Error("Valor pago diferente do pedido de limite UpMidias");
+    throw new Error("Valor pago diferente do pedido de limite UpMídias");
   }
 
   const granted = imageBotSqlite.transaction(() => {
@@ -891,7 +891,7 @@ export async function fulfillImageBotLimitBoostPayment(input: {
     await sendMessageWithToken(
       input.token,
       order.telegram_user_id,
-      `<b>Pagamento confirmado!</b>\n\nSeu limite diario recebeu +${granted.bonusCount} midias por dia, ${validity}.`,
+      `<b>Pagamento confirmado!</b>\n\nSeu limite diário recebeu +${granted.bonusCount} mídias por dia, ${validity}.`,
     ).catch((error) => console.warn("[image-limit-payment-confirmation]", error));
 
     if (order.telegram_chat_id && order.telegram_message_id) {
@@ -899,7 +899,7 @@ export async function fulfillImageBotLimitBoostPayment(input: {
         input.token,
         order.telegram_chat_id,
         order.telegram_message_id,
-        `Pagamento confirmado.\n\nSeu limite diario recebeu +${granted.bonusCount} midias por dia, ${validity}.`,
+        `Pagamento confirmado.\n\nSeu limite diário recebeu +${granted.bonusCount} mídias por dia, ${validity}.`,
       ).catch((error) => console.warn("[image-limit-payment-message-update]", error));
     }
   }
@@ -924,12 +924,12 @@ export async function fulfillImageBotPremiumPayment(input: {
   const order = imageBotSqlite
     .prepare("SELECT * FROM premium_payment_orders WHERE id = ?")
     .get(input.orderId) as ImageBotPremiumPaymentOrder | undefined;
-  if (!order) throw new Error("Pedido Premium do UpMidias nao encontrado");
+  if (!order) throw new Error("Pedido Premium do UpMídias não encontrado");
   if (order.status === "paid") return { ok: true, orderId: order.id, alreadyPaid: true };
   if (Math.round(Number(order.amount) * 100) !== Math.round(Number(input.amount) * 100)) {
     throw new Error("Valor pago diferente do plano Premium");
   }
-  if (!order.plan_id) throw new Error("Plano Premium do pedido nao encontrado");
+  if (!order.plan_id) throw new Error("Plano Premium do pedido não encontrado");
 
   const access = imageBotSqlite.transaction(() => {
     imageBotSqlite
@@ -957,7 +957,7 @@ export async function fulfillImageBotPremiumPayment(input: {
       input.token,
       order.telegram_user_id,
       access.plan.allow_favorites
-        ? `<b>Pagamento confirmado!</b>\n\nSeu Premium foi liberado ${validity}. Agora voce pode favoritar e abrir seus favoritos.`
+        ? `<b>Pagamento confirmado!</b>\n\nSeu Premium foi liberado ${validity}. Agora você pode favoritar e abrir seus favoritos.`
         : `<b>Pagamento confirmado!</b>\n\nSeu plano ${escapeHtml(order.plan_name)} foi liberado ${validity}.`,
     ).catch((error) => console.warn("[image-premium-payment-confirmation]", error));
 

@@ -53,7 +53,7 @@ export function ImageUpload({
     const allowed = allowedKinds.some((kind) => file.type.startsWith(`${kind}/`));
     if (!allowed) {
       toast.error(
-        allowedKinds.includes("video") ? "Selecione uma imagem ou video" : "Selecione uma imagem",
+        allowedKinds.includes("video") ? "Selecione uma imagem ou vídeo" : "Selecione uma imagem",
       );
       return;
     }
@@ -68,9 +68,9 @@ export function ImageUpload({
         data: { filename: file.name, contentType: file.type as any, dataBase64, visibility },
       });
       onChange(res.url);
-      toast.success(file.type.startsWith("video/") ? "Video enviado" : "Imagem enviada");
+      toast.success(file.type.startsWith("video/") ? "Vídeo enviado" : "Imagem enviada");
     } catch (e: any) {
-      toast.error(e.message ?? "Falha ao enviar midia");
+      toast.error(e.message ?? "Falha ao enviar mídia");
     } finally {
       setLoading(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -106,7 +106,7 @@ export function ImageUpload({
             variant="ghost"
             size="icon"
             onClick={() => onChange("")}
-            title="Remover midia"
+            title="Remover mídia"
           >
             <X className="h-4 w-4" />
           </Button>

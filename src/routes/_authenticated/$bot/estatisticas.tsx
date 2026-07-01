@@ -44,8 +44,8 @@ type StatsSection = "summary" | "media" | "users" | "hours" | "growth" | "favori
 
 const statsSections: { value: StatsSection; label: string }[] = [
   { value: "summary", label: "Resumo" },
-  { value: "media", label: "Midias" },
-  { value: "users", label: "Usuarios" },
+  { value: "media", label: "Mídias" },
+  { value: "users", label: "Usuários" },
   { value: "hours", label: "Horarios" },
   { value: "growth", label: "Crescimento" },
   { value: "favorites", label: "Favoritos" },
@@ -69,7 +69,7 @@ function ImageBotStatistics() {
       <div>
         <h1 className="font-display text-3xl font-semibold">Estatisticas</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Entregas, favoritos, usuarios ativos, horarios de uso, crescimento e erros do Telegram.
+          Entregas, favoritos, usuários ativos, horarios de uso, crescimento e erros do Telegram.
         </p>
       </div>
 
@@ -93,21 +93,21 @@ function ImageBotStatistics() {
         }
       >
         <Card className={activeSection !== "media" ? "panel-section-hidden" : "space-y-4 p-6"}>
-          <h2 className="font-display text-xl font-semibold">Fotos versus videos</h2>
+          <h2 className="font-display text-xl font-semibold">Fotos versus vídeos</h2>
           <StackedBar
             leftLabel="Fotos"
-            rightLabel="Videos"
+            rightLabel="Vídeos"
             left={data.mediaTypeTotals.photos}
             right={data.mediaTypeTotals.videos}
           />
           <div className="grid grid-cols-2 gap-3 text-sm">
             <StatPill label="Fotos" value={data.mediaTypeTotals.photos} />
-            <StatPill label="Videos" value={data.mediaTypeTotals.videos} />
+            <StatPill label="Vídeos" value={data.mediaTypeTotals.videos} />
           </div>
         </Card>
 
         <Card className={activeSection !== "users" ? "panel-section-hidden" : "space-y-4 p-6"}>
-          <h2 className="font-display text-xl font-semibold">Usuarios ativos</h2>
+          <h2 className="font-display text-xl font-semibold">Usuários ativos</h2>
           <StatPill label="Hoje" value={data.activeUsers.today} />
           <StatPill label="Semana" value={data.activeUsers.week} />
           <StatPill label="Mes" value={data.activeUsers.month} />
@@ -116,7 +116,7 @@ function ImageBotStatistics() {
         <Card className={activeSection !== "users" ? "panel-section-hidden" : "space-y-4 p-6"}>
           <h2 className="font-display text-xl font-semibold">Bloqueios e erros</h2>
           <StatPill
-            label="Usuarios bloqueados"
+            label="Usuários bloqueados"
             value={`${data.blockRate.blockedUsers}/${data.blockRate.totalUsers}`}
           />
           <StatPill label="Taxa de bloqueio" value={`${data.blockRate.percent}%`} />
@@ -164,7 +164,7 @@ function ImageBotStatistics() {
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>{formatDay(item.day)}</span>
                   <span>
-                    {item.users} usuarios - {item.media} midias - {item.deliveries} entregas
+                    {item.users} usuários - {item.media} mídias - {item.deliveries} entregas
                   </span>
                 </div>
                 <div className="grid grid-cols-3 gap-1">
@@ -176,8 +176,8 @@ function ImageBotStatistics() {
             ))}
           </div>
           <div className="flex flex-wrap gap-2 text-xs">
-            <Badge className="bg-blue-500">Usuarios</Badge>
-            <Badge className="bg-blue-300 text-foreground">Midias</Badge>
+            <Badge className="bg-blue-500">Usuários</Badge>
+            <Badge className="bg-blue-300 text-foreground">Mídias</Badge>
             <Badge>Entregas</Badge>
           </div>
         </Card>
@@ -194,7 +194,7 @@ function ImageBotStatistics() {
               <div className="text-2xl font-semibold text-primary">#{index + 1}</div>
               <div>
                 <div className="font-medium">
-                  {item.media_type === "photo" ? "Foto" : "Video"} -{" "}
+                  {item.media_type === "photo" ? "Foto" : "Vídeo"} -{" "}
                   {item.category === "hetero" ? "Hetero" : "Trans"}
                 </div>
                 <p className="line-clamp-2 text-sm text-muted-foreground">
@@ -218,11 +218,11 @@ function PeriodCard({ title, stats }: { title: string; stats: PeriodStats }) {
     <Card className="p-6">
       <h2 className="font-display text-lg font-semibold">{title}</h2>
       <div className="mt-4 text-3xl font-semibold">{stats.total}</div>
-      <p className="mt-1 text-sm text-muted-foreground">midias entregues</p>
+      <p className="mt-1 text-sm text-muted-foreground">mídias entregues</p>
       <div className="mt-5 grid grid-cols-3 gap-2 text-sm">
         <StatPill label="Fotos" value={stats.photos} />
-        <StatPill label="Videos" value={stats.videos} />
-        <StatPill label="Usuarios" value={stats.users} />
+        <StatPill label="Vídeos" value={stats.videos} />
+        <StatPill label="Usuários" value={stats.users} />
       </div>
     </Card>
   );

@@ -19,13 +19,13 @@ function ConfigPage() {
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    toast.success("Configuracoes salvas localmente nesta tela.");
+    toast.success("Configurações salvas localmente nesta tela.");
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-3xl font-semibold">Configuracao</h1>
+        <h1 className="font-display text-3xl font-semibold">Configuração</h1>
         <p className="mt-2 text-muted-foreground">
           Ajustes gerais da plataforma. Por enquanto estes campos sao a base visual da tela.
         </p>

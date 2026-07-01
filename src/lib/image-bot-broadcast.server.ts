@@ -26,7 +26,7 @@ function getTargetGroup(groupId: string) {
   const group = imageBotSqlite
     .prepare("SELECT telegram_chat_id, is_active FROM groups WHERE id = ?")
     .get(groupId) as ImageBotGroupTarget | undefined;
-  if (!group) throw new Error("Grupo do UpMidias não encontrado");
+  if (!group) throw new Error("Grupo do UpMídias não encontrado");
   if (!group.is_active) throw new Error("O bot não está ativo neste grupo");
   return group;
 }
@@ -104,7 +104,7 @@ export async function sendImageBotGroupAutomation(automation: ImageBotGroupAutom
         count: automation.media_batch_size,
       });
       if (!mediaItems.length) {
-        throw new Error("Nao ha midias ativas nesta categoria");
+        throw new Error("Não há mídias ativas nesta categoria");
       }
 
       for (const [index, media] of mediaItems.entries()) {
@@ -126,7 +126,7 @@ export async function sendImageBotGroupAutomation(automation: ImageBotGroupAutom
     }
     if (!automation.random_media_category) {
       const fileId = automation.saved_media_file_id;
-      if (!fileId) throw new Error("Selecione uma mÃ­dia salva do banco");
+      if (!fileId) throw new Error("Selecione uma mídia salva do banco");
       const caption = message;
       if (automation.saved_media_type === "video") {
         await sendVideoWithToken(token, chatId, fileId, caption, keyboard);

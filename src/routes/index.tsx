@@ -165,7 +165,7 @@ function LoginPage() {
 
   const accountModeText = createAccount
     ? hasAdmin
-      ? "Crie sua conta para configurar seus proprios bots. Ela sera criada como creator."
+      ? "Crie sua conta para configurar seus próprios bots. Ela sera criada como creator."
       : "Cadastre a primeira conta dona da plataforma CriaBot."
     : "Entre para administrar seus bots, planos, pagamentos e automacoes.";
 
@@ -210,7 +210,7 @@ function LoginPage() {
                 Sua plataforma para criar, vender e gerenciar bots.
               </h1>
               <p className="max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
-                Cada conta pode criar seus proprios bots com painel, token, banco, planos, mensagens
+                Cada conta pode criar seus próprios bots com painel, token, banco, planos, mensagens
                 e pagamentos separados. Voce continua com a conta admin para controlar a plataforma.
               </p>
             </div>
@@ -235,7 +235,7 @@ function LoginPage() {
             <div className="grid gap-3 rounded-[1.75rem] border bg-card p-4 shadow-sm backdrop-blur sm:grid-cols-3">
               {[
                 ["Admin", "Sua conta antiga continua dona da plataforma."],
-                ["Creator", "Novas contas criam apenas os proprios bots."],
+                ["Creator", "Novas contas criam apenas os próprios bots."],
                 ["Seguro", "Tokens ficam no servidor, longe do navegador."],
               ].map(([title, description]) => (
                 <div className="flex gap-3" key={title}>

@@ -156,15 +156,15 @@ type UserSection = "summary" | "list";
 
 const userSections: { value: UserSection; label: string }[] = [
   { value: "summary", label: "Resumo" },
-  { value: "list", label: "Lista de usuarios" },
+  { value: "list", label: "Lista de usuários" },
 ];
 
 const formatDate = (value: string | null) =>
-  value ? new Date(value).toLocaleString("pt-BR") : "Nao informado";
+  value ? new Date(value).toLocaleString("pt-BR") : "Não informado";
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 const userName = (user: ImageBotUser) =>
-  [user.first_name, user.last_name].filter(Boolean).join(" ") || "Nome nao disponivel";
+  [user.first_name, user.last_name].filter(Boolean).join(" ") || "Nome não disponível";
 
 function ImageBotUsers() {
   const queryClient = useQueryClient();
@@ -206,7 +206,7 @@ function ImageBotUsers() {
       queryClient.invalidateQueries({
         queryKey: ["image-bot-user-details", input.telegram_user_id],
       });
-      toast.success(input.is_blocked ? "Usuario bloqueado" : "Usuario desbloqueado");
+      toast.success(input.is_blocked ? "Usuário bloqueado" : "Usuário desbloqueado");
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -217,7 +217,7 @@ function ImageBotUsers() {
       const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
       const link = document.createElement("a");
       link.href = url;
-      link.download = `usuarios-upmidias-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.download = `usuários-upmídias-${new Date().toISOString().slice(0, 10)}.csv`;
       link.click();
       URL.revokeObjectURL(url);
       toast.success("CSV exportado");
@@ -230,7 +230,7 @@ function ImageBotUsers() {
     <div>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl font-semibold">Usuarios</h1>
+          <h1 className="font-display text-3xl font-semibold">Usuários</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Perfis, atividade, pagamentos, favoritos e comunicacao individual.
           </p>
@@ -254,10 +254,10 @@ function ImageBotUsers() {
             : "mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
         }
       >
-        <SummaryCard label="Total de usuarios" value={totalUsers} icon={Users} />
+        <SummaryCard label="Total de usuários" value={totalUsers} icon={Users} />
         <SummaryCard label="Ativos nas ultimas 24h" value={activeToday} icon={Clock3} />
-        <SummaryCard label="Usuarios Premium" value={premiumUsers} icon={Crown} />
-        <SummaryCard label="Midias entregues" value={totalDeliveries} icon={Send} />
+        <SummaryCard label="Usuários Premium" value={premiumUsers} icon={Crown} />
+        <SummaryCard label="Mídias entregues" value={totalDeliveries} icon={Send} />
       </div>
 
       <Card className={activeSection !== "list" ? "panel-section-hidden" : "mt-6 gap-4 p-4"}>
@@ -277,7 +277,7 @@ function ImageBotUsers() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="activity">Mais ativos recentemente</SelectItem>
-              <SelectItem value="deliveries">Mais midias recebidas</SelectItem>
+              <SelectItem value="deliveries">Mais mídias recebidas</SelectItem>
               <SelectItem value="favorites">Mais favoritos</SelectItem>
               <SelectItem value="payments">Maior valor pago</SelectItem>
             </SelectContent>
@@ -292,34 +292,34 @@ function ImageBotUsers() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Usuario</TableHead>
+                <TableHead>Usuário</TableHead>
                 <TableHead>Acesso</TableHead>
-                <TableHead className="text-center">Midias</TableHead>
+                <TableHead className="text-center">Mídias</TableHead>
                 <TableHead className="text-center">Favoritos</TableHead>
                 <TableHead>Pagamentos</TableHead>
                 <TableHead>Ultima atividade</TableHead>
-                <TableHead className="text-right">Acoes</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {usersQuery.isLoading && (
                 <TableRow>
                   <TableCell colSpan={7} className="py-14 text-center text-muted-foreground">
-                    Carregando usuarios...
+                    Carregando usuários...
                   </TableCell>
                 </TableRow>
               )}
               {usersQuery.isError && (
                 <TableRow>
                   <TableCell colSpan={7} className="py-14 text-center text-destructive">
-                    Nao consegui carregar os usuarios agora.
+                    Não consegui carregar os usuários agora.
                   </TableCell>
                 </TableRow>
               )}
               {!usersQuery.isLoading && !usersQuery.isError && !visibleUsers.length && (
                 <TableRow>
                   <TableCell colSpan={7} className="py-14 text-center text-muted-foreground">
-                    Nenhum usuario encontrado.
+                    Nenhum usuário encontrado.
                   </TableCell>
                 </TableRow>
               )}
@@ -398,7 +398,7 @@ function ImageBotUsers() {
           </Table>
         </div>
         <p className="text-xs text-muted-foreground">
-          Exibindo {visibleUsers.length} de {filteredUsers} usuario(s)
+          Exibindo {visibleUsers.length} de {filteredUsers} usuário(s)
           {deferredSearch ? " encontrados" : ""}. Total cadastrado: {totalUsers}.
         </p>
       </Card>
@@ -455,7 +455,7 @@ function UserAdminDialog({
       updateAccessFn({ data: { telegram_user_id: telegramUserId!, is_blocked: isBlocked } }),
     onSuccess: (_, blockedValue) => {
       refresh();
-      toast.success(blockedValue ? "Usuario bloqueado" : "Usuario desbloqueado");
+      toast.success(blockedValue ? "Usuário bloqueado" : "Usuário desbloqueado");
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -492,7 +492,7 @@ function UserAdminDialog({
         <DialogContent className="max-h-[92vh] max-w-6xl overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex flex-wrap items-center gap-2">
-              {details ? userName(details.user) : "Carregando usuario..."}
+              {details ? userName(details.user) : "Carregando usuário..."}
               {details?.user.is_premium && (
                 <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">
                   <Crown className="mr-1 h-3.5 w-3.5" /> Premium
@@ -502,7 +502,7 @@ function UserAdminDialog({
             <DialogDescription>
               {details
                 ? `Telegram ID ${details.user.telegram_user_id}`
-                : "Buscando dados do UpMidias"}
+                : "Buscando dados do UpMídias"}
             </DialogDescription>
           </DialogHeader>
           {isLoading || !details ? (
@@ -535,7 +535,7 @@ function UserAdminDialog({
                       onRevoke={() => {
                         if (
                           window.confirm(
-                            "Remover todo o Premium deste usuario, inclusive acessos pagos e pacotes ativos?",
+                            "Remover todo o Premium deste usuário, inclusive acessos pagos e pacotes ativos?",
                           )
                         ) {
                           premium.mutate({ action: "revoke" });
@@ -547,7 +547,7 @@ function UserAdminDialog({
                       <CompactInfoRow
                         label="Username"
                         value={
-                          details.user.username ? `@${details.user.username}` : "Nao informado"
+                          details.user.username ? `@${details.user.username}` : "Não informado"
                         }
                       />
                       <CompactInfoRow
@@ -556,12 +556,12 @@ function UserAdminDialog({
                       />
                       <CompactInfoRow
                         label="Idioma"
-                        value={details.user.language_code || "Nao informado"}
+                        value={details.user.language_code || "Não informado"}
                         icon={Languages}
                       />
                       <CompactInfoRow
                         label="Premium do Telegram"
-                        value={details.user.is_telegram_premium ? "Sim" : "Nao informado"}
+                        value={details.user.is_telegram_premium ? "Sim" : "Não informado"}
                       />
                       <CompactInfoRow
                         label="Primeiro /start"
@@ -589,7 +589,7 @@ function UserAdminDialog({
                         }
                       />
                       <CompactInfoRow
-                        label="Midias recebidas"
+                        label="Mídias recebidas"
                         value={String(details.user.media_delivered_count)}
                       />
                       <CompactInfoRow
@@ -606,8 +606,8 @@ function UserAdminDialog({
                           <h3 className="font-semibold">Acesso ao bot</h3>
                           <p className="mt-1 text-sm text-muted-foreground">
                             {details.user.is_blocked
-                              ? "Este usuario esta bloqueado."
-                              : "Este usuario pode utilizar o bot."}
+                              ? "Este usuário esta bloqueado."
+                              : "Este usuário pode utilizar o bot."}
                           </p>
                         </div>
                         <Button
@@ -620,12 +620,12 @@ function UserAdminDialog({
                           ) : (
                             <Ban className="h-4 w-4" />
                           )}
-                          {details.user.is_blocked ? "Desbloquear" : "Bloquear usuario"}
+                          {details.user.is_blocked ? "Desbloquear" : "Bloquear usuário"}
                         </Button>
                       </div>
                       {details.user.is_admin && (
                         <p className="mt-3 text-xs text-muted-foreground">
-                          Administradores nao podem ser bloqueados.
+                          Administradores não podem ser bloqueados.
                         </p>
                       )}
                     </Card>
@@ -637,14 +637,14 @@ function UserAdminDialog({
                 <ScrollArea className="h-[63vh] pr-4">
                   <div className="py-4">
                     {!details.activity.length ? (
-                      <EmptyState text="Nenhuma atividade registrada para este usuario." />
+                      <EmptyState text="Nenhuma atividade registrada para este usuário." />
                     ) : (
                       <div className="overflow-hidden rounded-2xl border bg-white">
                         <Table>
                           <TableHeader>
                             <TableRow>
                               <TableHead className="w-44">Data</TableHead>
-                              <TableHead>Acao</TableHead>
+                              <TableHead>Ação</TableHead>
                               <TableHead>Categoria</TableHead>
                               <TableHead>Tipo/detalhe</TableHead>
                             </TableRow>
@@ -678,7 +678,7 @@ function UserAdminDialog({
                 <ScrollArea className="h-[63vh] pr-4">
                   <div className="py-4">
                     {!details.favorites.length ? (
-                      <EmptyState text="Este usuario ainda nao possui favoritos." />
+                      <EmptyState text="Este usuário ainda não possui favoritos." />
                     ) : (
                       <div className="overflow-x-auto rounded-2xl border bg-white">
                         <Table>
@@ -689,7 +689,7 @@ function UserAdminDialog({
                               <TableHead>Tipo</TableHead>
                               <TableHead>Favoritada em</TableHead>
                               <TableHead>Status</TableHead>
-                              <TableHead className="text-right">Acao</TableHead>
+                              <TableHead className="text-right">Ação</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -704,7 +704,7 @@ function UserAdminDialog({
                                   {categoryLabel(item.category)}
                                 </TableCell>
                                 <TableCell className="py-2">
-                                  {item.media_type === "photo" ? "Foto" : "Video"}
+                                  {item.media_type === "photo" ? "Foto" : "Vídeo"}
                                 </TableCell>
                                 <TableCell className="whitespace-nowrap py-2 text-xs text-muted-foreground">
                                   {formatDate(item.favorited_at)}
@@ -726,7 +726,7 @@ function UserAdminDialog({
                                       })
                                     }
                                   >
-                                    <Eye className="h-4 w-4" /> Ver midia
+                                    <Eye className="h-4 w-4" /> Ver mídia
                                   </Button>
                                 </TableCell>
                               </TableRow>
@@ -747,7 +747,7 @@ function UserAdminDialog({
                       <h3 className="font-semibold">Mensagem individual</h3>
                     </div>
                     <p className="mt-2 text-sm text-muted-foreground">
-                      A mensagem sera enviada diretamente pelo bot UpMidias.
+                      A mensagem será enviada diretamente pelo bot UpMídias.
                     </p>
                     <Textarea
                       className="mt-4 min-h-44"
@@ -776,7 +776,7 @@ function UserAdminDialog({
       <Dialog open={preview !== null} onOpenChange={(next) => !next && setPreview(null)}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Visualizar midia favorita</DialogTitle>
+            <DialogTitle>Visualizar mídia favorita</DialogTitle>
             <DialogDescription className="break-all">{preview?.fileId}</DialogDescription>
           </DialogHeader>
           {preview && (
@@ -822,10 +822,10 @@ function PremiumPanel({
 }) {
   const validity =
     user.has_lifetime_premium_access || user.has_lifetime_limit_boost
-      ? "Vitalicio"
+      ? "Vitalício"
       : user.premium_until
         ? `Ate ${formatDate(user.premium_until)}`
-        : "Nenhum beneficio ativo";
+        : "Nenhum benefício ativo";
   return (
     <div
       className={
@@ -841,7 +841,7 @@ function PremiumPanel({
           />
           <div>
             <div className="font-semibold">
-              {user.is_premium ? "Usuario Premium" : "Usuario gratuito"}
+              {user.is_premium ? "Usuário Premium" : "Usuário gratuito"}
             </div>
             <div className="text-sm text-muted-foreground">{validity}</div>
           </div>
@@ -879,7 +879,7 @@ function PremiumPanel({
               {plans.map((plan) => (
                 <SelectItem key={plan.id} value={plan.id}>
                   {plan.name} - {formatCurrency(plan.price)} -{" "}
-                  {plan.access_type === "lifetime" ? "Vitalicio" : `${plan.access_days} dias`}
+                  {plan.access_type === "lifetime" ? "Vitalício" : `${plan.access_days} dias`}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -960,7 +960,7 @@ function categoryLabel(category: "hetero" | "trans") {
 
 function activityLabel(item: UserActivity) {
   if (item.action === "first_start") return "Primeiro /start";
-  if (item.action === "media_favorited") return "Favoritou uma midia";
+  if (item.action === "media_favorited") return "Favoritou uma mídia";
   if (item.action === "payment_paid") return "Pagamento aprovado";
   if (item.action === "payment_created") return "Pix gerado";
   return "Midia recebida";
@@ -972,7 +972,7 @@ function activityDetail(item: UserActivity) {
     return `${product} - ${formatCurrency(Number(item.amount ?? 0))} - ${item.status ?? ""}`;
   }
   if (item.action === "media_favorited") {
-    return `${item.media_type === "photo" ? "Foto" : "Video"} - ${item.detail ?? ""}`;
+    return `${item.media_type === "photo" ? "Foto" : "Vídeo"} - ${item.detail ?? ""}`;
   }
   if (item.action === "media_delivered") {
     const source =
@@ -981,11 +981,11 @@ function activityDetail(item: UserActivity) {
         : item.detail === "random"
           ? "Aleatorio"
           : item.detail === "video"
-            ? "Video"
+            ? "Vídeo"
             : "Foto";
-    return `${item.media_type === "photo" ? "Foto" : "Video"} - ${source}`;
+    return `${item.media_type === "photo" ? "Foto" : "Vídeo"} - ${source}`;
   }
-  return "Usuario iniciou o bot";
+  return "Usuário iniciou o bot";
 }
 
 function SummaryCard({

@@ -39,7 +39,7 @@ const statusLabel: Record<ManagedBot["status"], string> = {
   online: "Online",
   stopped: "Parado",
   error: "Erro",
-  not_configured: "Nao configurado",
+  not_configured: "Não configurado",
 };
 
 const statusClass: Record<ManagedBot["status"], string> = {
@@ -121,7 +121,7 @@ function DashboardPage() {
             icon={AlertCircle}
           />
           <SummaryCard
-            title="Atualizacoes pendentes"
+            title="Atualizações pendentes"
             value={pendingUpdates}
             helper="fila do Telegram"
             icon={LayoutDashboard}
@@ -150,7 +150,7 @@ function DashboardPage() {
           )}
           {botsQuery.isError && (
             <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-              Nao consegui carregar os bots agora.
+              Não consegui carregar os bots agora.
             </div>
           )}
           {!botsQuery.isLoading && !botsQuery.isError && bots.length === 0 && (

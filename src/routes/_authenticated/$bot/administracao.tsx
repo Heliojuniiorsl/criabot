@@ -209,12 +209,12 @@ function ImageBotAdministration() {
       toast.error("Informe um ID do Telegram válido");
       return;
     }
-    if (!window.confirm("Confirmar alteração de administrador e permissões?")) return;
+    if (!window.confirm("Confirmar alteração dé administrador e permissões?")) return;
     saveAdminMutation.mutate();
   }
 
   function confirmRemoveAdmin(id: number) {
-    if (!window.confirm("Remover este administrador?")) return;
+    if (!window.confirm("Remover esté administrador?")) return;
     removeAdminMutation.mutate(id);
   }
 
@@ -229,7 +229,7 @@ function ImageBotAdministration() {
       toast.error('Digite "RESTAURAR BANCO" para confirmar');
       return;
     }
-    if (!window.confirm("Isso vai substituir os dados atuais do UpMidias. Continuar?")) return;
+    if (!window.confirm("Isso vai substituir os dados atuais do UpMídias. Continuar?")) return;
     restoreBackup.mutate();
   }
 
@@ -238,7 +238,7 @@ function ImageBotAdministration() {
       <div>
         <h1 className="font-display text-3xl font-semibold">Administração</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Permissões, lixeira, histórico de alterações e backup do banco do UpMidias.
+          Permissões, lixeira, histórico de alterações e backup do banco do UpMídias.
         </p>
       </div>
 

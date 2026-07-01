@@ -20,7 +20,7 @@ function PerfilPage() {
   });
 
   const admin = sessionQuery.data?.admin;
-  const name = admin?.email?.split("@")[0] ?? "Usuario";
+  const name = admin?.email?.split("@")[0] ?? "Usuário";
   const email = admin?.email ?? "Carregando...";
   const role = admin?.role === "admin" ? "Administrador" : "Creator";
 
@@ -28,7 +28,7 @@ function PerfilPage() {
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-3xl font-semibold">Perfil</h1>
-        <p className="mt-2 text-muted-foreground">Dados basicos da sua conta no CriaBot.</p>
+        <p className="mt-2 text-muted-foreground">Dados básicos da sua conta no CriaBot.</p>
       </div>
 
       <Card className="border bg-card p-5 shadow-sm sm:p-6">
@@ -44,7 +44,7 @@ function PerfilPage() {
           </div>
           <Button
             variant="outline"
-            onClick={() => toast.info("Edicao de perfil entra na proxima etapa.")}
+            onClick={() => toast.info("Edição de perfil entra na próxima etapa.")}
           >
             <Pencil className="mr-2 h-4 w-4" />
             Editar perfil

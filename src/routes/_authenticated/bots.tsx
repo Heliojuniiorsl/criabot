@@ -150,7 +150,7 @@ function formatBotChatStatus(status: VipVerificationResult["bot_status"]) {
   if (status === "restricted") return "Restrito";
   if (status === "left") return "Fora";
   if (status === "kicked") return "Removido";
-  return "Nao encontrado";
+  return "Não encontrado";
 }
 
 const wizardSteps = [
@@ -169,12 +169,12 @@ const wizardSteps = [
   {
     id: 3,
     title: "Primeiro plano",
-    description: "Mensagem e preco",
+    description: "Mensagem e preço",
     icon: Crown,
   },
   {
     id: 4,
-    title: "Revisao",
+    title: "Revisão",
     description: "Criar bot",
     icon: CheckCircle2,
   },
@@ -228,12 +228,12 @@ function MiniTutorial({
 
 const botFatherTokenTutorial = [
   "Abra o Telegram e pesquise por @BotFather.",
-  "Depois de encontrar o BotFather, toque em Open no botao que aparece embaixo, proximo a caixa de mensagem.",
+  "Depois de encontrar o BotFather, toque em Open no botão que aparece embaixo, próximo à caixa de mensagem.",
   "Se for a primeira vez, toque em Start.",
   "Toque em Create a New Bot.",
   "Digite o nome do bot.",
-  "Escolha um username unico terminado em bot ou _bot. Ex: usernamebot ou username_bot.",
-  "Quando o bot for criado, o BotFather mostrara o token da API.",
+  "Escolha um username único terminado em bot ou _bot. Ex: usernamebot ou username_bot.",
+  "Quando o bot for criado, o BotFather mostrará o token da API.",
   "Toque em Copy para copiar o token.",
 ];
 
@@ -433,11 +433,11 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
       if (result.ok) {
         toast.success("Grupo/canal VIP verificado");
       } else {
-        toast.error(result.message || "O bot ainda nao esta pronto nesse grupo/canal.");
+        toast.error(result.message || "O bot ainda não está pronto nesse grupo/canal.");
       }
     },
     onError: (error: any) => {
-      const message = error?.message || "Nao consegui verificar esse grupo/canal VIP.";
+      const message = error?.message || "Não consegui verificar esse grupo/canal VIP.";
       setVipVerification(null);
       setVipVerificationError(message);
       toast.error(message);
@@ -579,12 +579,12 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
       toast.error(
         !vipChatIdIsValid
           ? "Informe um ID negativo de grupo ou canal, por exemplo -1001234567890."
-          : "Clique em verificar e confirme que o bot e administrador do VIP.",
+          : "Clique em verificar e confirme que o bot é administrador do VIP.",
       );
       return;
     }
     if (step === 3 && !planStepIsValid) {
-      toast.error("Complete o nome, mensagem, preco e validade do plano.");
+      toast.error("Complete o nome, mensagem, preço e validade do plano.");
       return;
     }
     setStep((current) => Math.min(4, current + 1) as 1 | 2 | 3 | 4);
@@ -1014,13 +1014,13 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                                   Username:{" "}
                                   {linkedCriaBotUser.username
                                     ? `@${linkedCriaBotUser.username}`
-                                    : "nao informado"}
+                                    : "não informado"}
                                 </span>
                                 <span>
-                                  Idioma: {linkedCriaBotUser.language_code || "nao informado"}
+                                  Idioma: {linkedCriaBotUser.language_code || "não informado"}
                                 </span>
                                 <span>
-                                  Premium Telegram: {linkedCriaBotUser.is_premium ? "sim" : "nao"}
+                                  Premium Telegram: {linkedCriaBotUser.is_premium ? "sim" : "não"}
                                 </span>
                               </div>
                             </div>
@@ -1043,7 +1043,7 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                               </li>
                               <li>
                                 <strong className="text-foreground">03.</strong> Volte para esta
-                                pagina e clique em{" "}
+                                página e clique em{" "}
                                 <strong className="text-foreground">Atualizar</strong>.
                               </li>
                               <li>
@@ -1067,7 +1067,7 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                       </h3>
                       <p className="mt-1 text-sm text-muted-foreground">
                         O bot precisa ser administrador desse grupo ou canal para entregar o convite
-                        apos o pagamento.
+                        após o pagamento.
                       </p>
                     </div>
                     <MiniTutorial
@@ -1075,7 +1075,7 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                       items={[
                         {
                           title: "Adicione o bot",
-                          body: "Coloque o bot que voce esta criando dentro do grupo ou canal VIP.",
+                          body: "Coloque o bot que você está criando dentro do grupo ou canal VIP.",
                         },
                         {
                           title: "Promova como admin",
@@ -1185,13 +1185,13 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                           <div className="rounded-2xl bg-white/70 p-3">
                             <p className="text-xs opacity-70">Grupo/canal</p>
                             <p className="mt-1 font-semibold">
-                              {vipVerification.chat ? "Encontrado" : "Nao encontrado"}
+                              {vipVerification.chat ? "Encontrado" : "Não encontrado"}
                             </p>
                           </div>
                           <div className="rounded-2xl bg-white/70 p-3">
                             <p className="text-xs opacity-70">Bot no grupo/canal</p>
                             <p className="mt-1 font-semibold">
-                              {vipVerification.bot_in_chat ? "Sim" : "Nao"}
+                              {vipVerification.bot_in_chat ? "Sim" : "Não"}
                             </p>
                           </div>
                           <div className="rounded-2xl bg-white/70 p-3">
@@ -1238,12 +1238,12 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                           body: "Escreva a chamada que aparece quando o cliente abre o bot com /start.",
                         },
                         {
-                          title: "Plano e botao",
-                          body: "Defina o nome do plano e, se quiser, um texto personalizado para o botao do Telegram.",
+                          title: "Plano e botão",
+                          body: "Defina o nome do plano e, se quiser, um texto personalizado para o botão do Telegram.",
                         },
                         {
                           title: "Preco e validade",
-                          body: "Escolha o valor e se o acesso sera por dias ou vitalicio. O Pix sera gerado nesse plano.",
+                          body: "Escolha o valor e se o acesso será por dias ou vitalício. O Pix será gerado nesse plano.",
                         },
                       ]}
                     />
@@ -1268,12 +1268,12 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="plan_button_label">Texto do botao</Label>
+                        <Label htmlFor="plan_button_label">Texto do botão</Label>
                         <Input
                           id="plan_button_label"
                           value={planButtonLabel}
                           onChange={(event) => setPlanButtonLabel(event.target.value)}
-                          placeholder="Vazio usa nome e preco"
+                          placeholder="Vazio usa nome e preço"
                         />
                       </div>
                     </div>
@@ -1287,7 +1287,7 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                         required
                       />
                       <p className="text-xs text-muted-foreground">
-                        Variaveis: {"{{nome}}"}, {"{{preco}}"}, {"{{validade}}"}.
+                        Variáveis: {"{{nome}}"}, {"{{preco}}"}, {"{{validade}}"}.
                       </p>
                     </div>
                     <div className="grid gap-4 sm:grid-cols-3">
@@ -1311,7 +1311,7 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                           }
                         >
                           <option value="days">Por dias</option>
-                          <option value="lifetime">Vitalicio</option>
+                          <option value="lifetime">Vitalício</option>
                         </select>
                       </div>
                       <div className="space-y-2">
@@ -1335,7 +1335,7 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                         Passo 4: revisar e criar
                       </h3>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Confira tudo antes de criar. O banco separado sera criado automaticamente.
+                        Confira tudo antes de criar. O banco separado será criado automaticamente.
                       </p>
                     </div>
                     <MiniTutorial
@@ -1361,24 +1361,24 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                         <p className="mt-1 font-semibold">
                           {validatedBot
                             ? `${validatedBot.display_name} (@${validatedBot.username})`
-                            : "Nao validado"}
+                            : "Não validado"}
                         </p>
                       </div>
                       <div className="rounded-2xl bg-muted/60 p-4">
                         <p className="text-xs font-semibold uppercase text-muted-foreground">
                           Grupo/canal VIP
                         </p>
-                        <p className="mt-1 font-semibold">{vipChatId || "Nao informado"}</p>
+                        <p className="mt-1 font-semibold">{vipChatId || "Não informado"}</p>
                       </div>
                       <div className="rounded-2xl bg-muted/60 p-4">
                         <p className="text-xs font-semibold uppercase text-muted-foreground">
                           Plano inicial
                         </p>
-                        <p className="mt-1 font-semibold">{planName || "Nao informado"}</p>
+                        <p className="mt-1 font-semibold">{planName || "Não informado"}</p>
                         <p className="text-muted-foreground">
                           {planPriceIsValid ? formatCurrency(planPriceNumber) : "Preco invalido"} ·{" "}
                           {planAccessType === "lifetime"
-                            ? "Vitalicio"
+                            ? "Vitalício"
                             : `${planDurationDays || "0"} dias`}
                         </p>
                       </div>
@@ -1474,11 +1474,11 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                       </div>
                       <p className="mt-1 text-muted-foreground">
                         {planName || "Sem nome"} ·{" "}
-                        {planPriceIsValid ? formatCurrency(planPriceNumber) : "preco invalido"}
+                        {planPriceIsValid ? formatCurrency(planPriceNumber) : "preço inválido"}
                       </p>
                     </div>
                     <div className="rounded-2xl bg-white/80 p-4 text-xs text-muted-foreground">
-                      Quando criar, o CriaBot registra um bot proprio, cria o banco separado e grava
+                      Quando criar, o CriaBot registra um bot próprio, cria o banco separado e grava
                       a mensagem inicial + primeiro plano nesse banco.
                     </div>
                   </div>
@@ -1517,7 +1517,7 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                   <span>Bot</span>
                   <span>Tipo</span>
                   <span>Status</span>
-                  <span className="text-right">Acoes</span>
+                  <span className="text-right">Ações</span>
                 </div>
 
                 <div className="divide-y">
@@ -1620,7 +1620,7 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                 </div>
                 <h2 className="mt-4 font-display text-2xl font-semibold">Nenhum bot cadastrado</h2>
                 <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-                  Crie o primeiro bot conectando um token do BotFather. O painel e o banco serao
+                  Crie o primeiro bot conectando um token do BotFather. O painel e o banco serão
                   gerados separadamente.
                 </p>
                 <Button asChild className="mt-5 rounded-full px-5">
