@@ -18,6 +18,7 @@ import {
   RotateCw,
   ShieldCheck,
   Square,
+  Trash2,
   UserRound,
   Users,
 } from "lucide-react";
@@ -27,11 +28,20 @@ import { toast } from "sonner";
 import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   createManagedSalesBot,
+  deleteManagedSalesBot,
   getCriaBotLinkStatus,
   getManagedBots,
   listManagedSalesBotVipCandidates,
@@ -349,6 +359,7 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
   const sessionFn = useServerFn(getAdminSession);
   const listFn = useServerFn(getManagedBots);
   const actionFn = useServerFn(runManagedBotAction);
+  const deleteBotFn = useServerFn(deleteManagedSalesBot);
   const createBotFn = useServerFn(createManagedSalesBot);
   const validateTokenFn = useServerFn(validateManagedSalesBotToken);
   const listVipCandidatesFn = useServerFn(listManagedSalesBotVipCandidates);
@@ -361,6 +372,8 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
   const [vipChatId, setVipChatId] = useState("");
   const [vipVerification, setVipVerification] = useState<VipVerificationResult | null>(null);
   const [vipVerificationError, setVipVerificationError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ManagedBot | null>(null);
+  const [deletePassword, setDeletePassword] = useState("");
   const [welcomeMessage, setWelcomeMessage] = useState(
     "Bem-vindo(a)! Escolha um plano abaixo para liberar seu acesso VIP.",
   );
@@ -461,6 +474,18 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
       toast.success(result.status_message || messages[variables.action]);
     },
     onError: (error: any) => toast.error(error.message),
+  });
+
+  const deleteBot = useMutation({
+    mutationFn: (data: { key: ManagedBot["key"]; password: string }) =>
+      deleteBotFn({ data }) as Promise<{ username: string; display_name: string }>,
+    onSuccess: async (result) => {
+      setDeleteTarget(null);
+      setDeletePassword("");
+      await qc.invalidateQueries({ queryKey: ["managed-bots"] });
+      toast.success(`Bot @${result.username} excluído`);
+    },
+    onError: (error: any) => toast.error(error.message || "Não consegui excluir esse bot"),
   });
 
   async function signOut() {
@@ -1545,50 +1570,43 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
               </Card>
             )}
             {!botsQuery.isLoading && !botsQuery.isError && bots.length > 0 && (
-              <Card className="overflow-hidden border bg-card shadow-sm">
-                <div className="hidden">
-                  <span>Bot</span>
-                  <span>Tipo</span>
-                  <span>Status</span>
-                  <span className="text-right">Ações</span>
-                </div>
-
-                <div className="divide-y">
-                  {bots.map((bot) => {
-                    const Icon = bot.kind === "sales" ? Bot : Images;
-                    const busy = action.isPending && action.variables?.key === bot.key;
-                    return (
-                      <div key={bot.key} className="px-4 py-4 transition hover:bg-muted/20 lg:px-5">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-center gap-4">
-                            {bot.photo_data_url ? (
-                              <img
-                                src={bot.photo_data_url}
-                                alt={`Foto de ${bot.display_name}`}
-                                className="h-14 w-14 rounded-2xl object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                                <Icon className="h-7 w-7" />
-                              </div>
-                            )}
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {bots.map((bot) => {
+                  const Icon = bot.kind === "sales" ? Bot : Images;
+                  const busy = action.isPending && action.variables?.key === bot.key;
+                  const deleting = deleteBot.isPending && deleteBot.variables?.key === bot.key;
+                  const canDelete = bot.is_custom && bot.kind === "sales";
+                  return (
+                    <Card key={bot.key} className="flex min-w-0 flex-col p-4 shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        {bot.photo_data_url ? (
+                          <img
+                            src={bot.photo_data_url}
+                            alt={`Foto de ${bot.display_name}`}
+                            className="h-12 w-12 rounded-2xl object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                            <Icon className="h-6 w-6" />
                           </div>
-                          <span
-                            className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClasses[bot.status]}`}
-                          >
-                            {statusLabels[bot.status]}
-                          </span>
-                        </div>
+                        )}
+                        <span
+                          className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${statusClasses[bot.status]}`}
+                        >
+                          {statusLabels[bot.status]}
+                        </span>
+                      </div>
 
-                        <h2 className="mt-4 font-display text-lg font-semibold">
+                      <div className="mt-4 min-w-0 flex-1">
+                        <h2 className="truncate font-display text-lg font-semibold">
                           {bot.display_name}
                         </h2>
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        <p className="mt-1 truncate text-sm text-muted-foreground">
                           {bot.username ? `@${bot.username}` : bot.status_message}
                         </p>
                         {bot.username && bot.status_message && (
                           <p
-                            className={`mt-2 text-xs ${
+                            className={`mt-2 line-clamp-2 text-xs ${
                               bot.status === "error" ? "text-destructive" : "text-muted-foreground"
                             }`}
                           >
@@ -1600,51 +1618,70 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                             {bot.pending_updates} atualização(ões) aguardando processamento
                           </p>
                         )}
+                      </div>
 
-                        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                          <Button
-                            variant="outline"
-                            className="h-9 rounded-full text-xs"
-                            disabled={!bot.configured || bot.status === "online" || busy}
-                            onClick={() => action.mutate({ key: bot.key, action: "start" })}
-                          >
-                            <Play className="mr-1 h-4 w-4" /> Iniciar
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="h-9 rounded-full text-xs"
-                            disabled={!bot.configured || bot.status === "stopped" || busy}
-                            onClick={() => action.mutate({ key: bot.key, action: "stop" })}
-                          >
-                            <Square className="mr-1 h-4 w-4" /> Parar
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="h-9 rounded-full text-xs"
-                            disabled={!bot.configured || busy}
-                            onClick={() => action.mutate({ key: bot.key, action: "restart" })}
-                          >
-                            <RotateCw className={`mr-1 h-4 w-4 ${busy ? "animate-spin" : ""}`} />{" "}
-                            Reiniciar
-                          </Button>
-                        </div>
+                      <div className="mt-4 grid grid-cols-3 gap-2">
+                        <Button
+                          variant="outline"
+                          className="h-8 rounded-full px-2 text-xs"
+                          disabled={!bot.configured || bot.status === "online" || busy || deleting}
+                          onClick={() => action.mutate({ key: bot.key, action: "start" })}
+                        >
+                          <Play className="h-3.5 w-3.5" />
+                          Iniciar
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="h-8 rounded-full px-2 text-xs"
+                          disabled={!bot.configured || bot.status === "stopped" || busy || deleting}
+                          onClick={() => action.mutate({ key: bot.key, action: "stop" })}
+                        >
+                          <Square className="h-3.5 w-3.5" />
+                          Parar
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="h-8 rounded-full px-2 text-xs"
+                          disabled={!bot.configured || busy || deleting}
+                          onClick={() => action.mutate({ key: bot.key, action: "restart" })}
+                        >
+                          <RotateCw className={`h-3.5 w-3.5 ${busy ? "animate-spin" : ""}`} />
+                          Reiniciar
+                        </Button>
+                      </div>
 
+                      <div className="mt-3 grid gap-2">
                         {bot.username ? (
-                          <Button asChild className="mt-4 w-full rounded-full">
+                          <Button asChild className="h-9 w-full rounded-full">
                             <Link to="/$bot/dashboard" params={{ bot: bot.username }}>
                               Abrir painel
                             </Link>
                           </Button>
                         ) : (
-                          <Button className="mt-4 w-full rounded-full" disabled>
+                          <Button className="h-9 w-full rounded-full" disabled>
                             Configure o token para abrir
                           </Button>
                         )}
+                        {canDelete && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-9 w-full rounded-full border-destructive/20 text-destructive hover:bg-destructive/10"
+                            disabled={deleting}
+                            onClick={() => {
+                              setDeleteTarget(bot);
+                              setDeletePassword("");
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Excluir bot
+                          </Button>
+                        )}
                       </div>
-                    );
-                  })}
-                </div>
-              </Card>
+                    </Card>
+                  );
+                })}
+              </div>
             )}
             {!botsQuery.isLoading && !botsQuery.isError && bots.length === 0 && (
               <Card className="p-10 text-center">
@@ -1666,6 +1703,83 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
             )}
           </section>
         )}
+        <Dialog
+          open={Boolean(deleteTarget)}
+          onOpenChange={(open) => {
+            if (open) return;
+            if (deleteBot.isPending) return;
+            setDeleteTarget(null);
+            setDeletePassword("");
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Excluir bot</DialogTitle>
+              <DialogDescription>
+                Digite sua senha para confirmar a exclusão de{" "}
+                <strong className="text-foreground">
+                  {deleteTarget?.username
+                    ? `@${deleteTarget.username}`
+                    : deleteTarget?.display_name}
+                </strong>
+                . O bot sai da lista e o webhook dele é removido.
+              </DialogDescription>
+            </DialogHeader>
+            <form
+              className="space-y-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (!deleteTarget || !deletePassword.trim()) return;
+                deleteBot.mutate({
+                  key: deleteTarget.key,
+                  password: deletePassword,
+                });
+              }}
+            >
+              <div className="space-y-2">
+                <Label htmlFor="delete-bot-password">Senha da conta</Label>
+                <Input
+                  id="delete-bot-password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={deletePassword}
+                  onChange={(event) => setDeletePassword(event.target.value)}
+                  placeholder="Digite sua senha"
+                />
+              </div>
+              <DialogFooter className="gap-2 sm:space-x-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={deleteBot.isPending}
+                  onClick={() => {
+                    setDeleteTarget(null);
+                    setDeletePassword("");
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  variant="destructive"
+                  disabled={!deletePassword.trim() || deleteBot.isPending}
+                >
+                  {deleteBot.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Excluindo...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4" />
+                      Excluir definitivamente
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </main>
   );

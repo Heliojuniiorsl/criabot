@@ -259,6 +259,19 @@ export function findManagedSalesBotByKey(key: string) {
   return null;
 }
 
+export function deleteManagedSalesBotRecord(id: string) {
+  const bot = findManagedSalesBotById(id);
+  if (!bot) return null;
+
+  const remove = registry.transaction(() => {
+    registry.prepare(`DELETE FROM ${legacyCloneTable} WHERE id = ?`).run(id);
+    registry.prepare(`DELETE FROM ${managedTable} WHERE id = ?`).run(id);
+  });
+  remove();
+
+  return bot;
+}
+
 export function findManagedSalesBotByUsername(username: string) {
   const normalized = normalizeUsername(username);
   migrateLegacyEnvManagedSalesBots();

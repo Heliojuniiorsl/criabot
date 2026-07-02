@@ -5,12 +5,17 @@ import { randomUUID } from "node:crypto";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import Database from "better-sqlite3";
 
-import { requireAccountSession, requireAdminSession } from "@/lib/auth.server";
+import {
+  requireAccountSession,
+  requireAdminSession,
+  verifyCurrentAccountPassword,
+} from "@/lib/auth.server";
 import { controlManagedBot, getManagedBotToken, listManagedBots } from "@/lib/bot-manager.server";
 import { getTelegramGroups, localDb, sqlite, upsertTelegramGroup } from "@/lib/database.server";
 import { getEnvSettingsForPanel, saveEnvSettingsFromPanel } from "@/lib/env-settings.server";
 import {
   createManagedSalesBotRecord,
+  deleteManagedSalesBotRecord,
   findManagedSalesBotByKey,
   findManagedSalesBotByUsername,
   managedSalesBotRuntime,
@@ -58,6 +63,7 @@ import {
 } from "@/lib/image-bot-database.server";
 import { recordCustomerEvent } from "@/lib/sales.server";
 import {
+  deleteWebhookWithToken,
   getBotInfoWithToken,
   getBotPhotoDataUrlWithToken,
   getChatWithToken,
@@ -501,6 +507,42 @@ export const runManagedBotAction = createServerFn({ method: "POST" })
       }
     }
     return controlManagedBot(data.key, data.action);
+  });
+
+export const deleteManagedSalesBot = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      key: managedBotKey,
+      password: z.string().min(1).max(200),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const session = verifyCurrentAccountPassword(data.password);
+    const bot = findManagedSalesBotByKey(data.key);
+    if (!bot) throw new Error("Esse bot não pode ser excluído pelo painel.");
+    if (session.role !== "admin" && bot.owner_account_id !== session.id) {
+      throw new Error("Esse bot não pertence à sua conta");
+    }
+
+    const token = getManagedBotToken(data.key) ?? bot.token;
+    if (token) {
+      await deleteWebhookWithToken(token).catch((error) => {
+        console.warn(
+          `[managed-sales-bot:${bot.id}] falha ao remover webhook antes de excluir`,
+          error,
+        );
+      });
+    }
+
+    const deleted = deleteManagedSalesBotRecord(bot.id);
+    if (!deleted) throw new Error("Não consegui excluir esse bot");
+
+    return {
+      ok: true,
+      key: bot.key,
+      username: bot.username,
+      display_name: bot.display_name,
+    };
   });
 
 export const validateManagedSalesBotToken = createServerFn({ method: "POST" })

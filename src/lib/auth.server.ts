@@ -143,3 +143,14 @@ export function requireAccountSession() {
   if (!account) throw new Error("Não autenticado");
   return account;
 }
+
+export function verifyCurrentAccountPassword(password: string) {
+  const account = requireAccountSession();
+  const row = sqlite
+    .prepare("SELECT password_hash FROM admin_accounts WHERE id = ?")
+    .get(account.id) as { password_hash: string } | undefined;
+  if (!row || !verifyPassword(password, row.password_hash)) {
+    throw new Error("Senha incorreta");
+  }
+  return account;
+}
