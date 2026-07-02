@@ -38,6 +38,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   createManagedSalesBot,
@@ -1114,8 +1121,8 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                           </div>
                           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                             Adicione o bot <strong>@{validatedBot?.username}</strong> ao grupo ou
-                            canal VIP, envie uma mensagem ou gere uma atividade nele e clique em
-                            Atualizar lista.
+                            canal VIP e clique em Atualizar lista. Se ele ainda não aparecer, envie
+                            uma mensagem no grupo/canal para o Telegram avisar o bot.
                           </p>
                         </div>
                         <Button
@@ -1176,67 +1183,45 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                       )}
 
                     {vipCandidates.length > 0 && (
-                      <div className="space-y-3">
-                        <p className="text-sm font-semibold">Selecione qual será o VIP</p>
-                        <div className="grid gap-3">
-                          {vipCandidates.map((candidate) => {
-                            const selected = vipVerification?.chat_id === candidate.chat_id;
-                            const statusLabel = candidate.ok
-                              ? "Administrador"
-                              : candidate.bot_in_chat
-                                ? "Precisa ser admin"
-                                : "Bot fora";
-                            return (
-                              <button
-                                key={candidate.chat_id}
-                                type="button"
-                                onClick={() => handleSelectVipCandidate(candidate)}
-                                className={`rounded-2xl border p-4 text-left transition hover:border-primary/60 hover:bg-primary/5 ${
-                                  selected ? "border-primary bg-primary/5" : "bg-card"
-                                }`}
-                              >
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                  <div className="min-w-0">
-                                    <div className="flex items-center gap-2">
-                                      {candidate.ok ? (
-                                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                                      ) : (
-                                        <AlertCircle className="h-4 w-4 text-amber-600" />
-                                      )}
-                                      <p className="truncate font-semibold">
-                                        {candidate.chat?.title ||
-                                          `Grupo/canal ${candidate.chat_id}`}
-                                      </p>
-                                    </div>
-                                    <p className="mt-1 text-xs text-muted-foreground">
-                                      {formatTelegramChatType(candidate.chat?.type ?? null)}
-                                      {candidate.chat?.username
-                                        ? ` · @${candidate.chat.username}`
-                                        : ` · ID ${candidate.chat_id}`}
-                                      {candidate.member_count != null
-                                        ? ` · ${candidate.member_count} membro(s)`
-                                        : ""}
-                                    </p>
-                                    {!candidate.ok && candidate.message && (
-                                      <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
-                                        {candidate.message}
-                                      </p>
-                                    )}
-                                  </div>
-                                  <span
-                                    className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                                      candidate.ok
-                                        ? "bg-emerald-100 text-emerald-700"
-                                        : "bg-amber-100 text-amber-800"
-                                    }`}
-                                  >
-                                    {statusLabel}
-                                  </span>
-                                </div>
-                              </button>
+                      <div className="space-y-2">
+                        <Label>Selecione o grupo ou canal VIP</Label>
+                        <Select
+                          value={vipChatId || undefined}
+                          onValueChange={(value) => {
+                            const candidate = vipCandidates.find(
+                              (item) => String(item.chat_id) === value,
                             );
-                          })}
-                        </div>
+                            if (candidate) handleSelectVipCandidate(candidate);
+                          }}
+                        >
+                          <SelectTrigger className="h-12 rounded-2xl bg-card">
+                            <SelectValue placeholder="Escolha um grupo ou canal detectado" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {vipCandidates.map((candidate) => {
+                              const statusLabel = candidate.ok
+                                ? "Administrador"
+                                : candidate.bot_in_chat
+                                  ? "Precisa ser admin"
+                                  : "Bot fora";
+                              const title =
+                                candidate.chat?.title || `Grupo/canal ${candidate.chat_id}`;
+                              const type = formatTelegramChatType(candidate.chat?.type ?? null);
+                              const handle = candidate.chat?.username
+                                ? `@${candidate.chat.username}`
+                                : `ID ${candidate.chat_id}`;
+                              return (
+                                <SelectItem
+                                  key={candidate.chat_id}
+                                  value={String(candidate.chat_id)}
+                                >
+                                  {title} · {type}
+                                  {handle ? ` · ${handle}` : ""} · {statusLabel}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
                       </div>
                     )}
 
