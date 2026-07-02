@@ -536,6 +536,22 @@ export function getChatMemberWithToken(
   );
 }
 
+export function getUpdatesWithToken(
+  token: string,
+  options: { allowed_updates?: string[]; limit?: number; timeout?: number } = {},
+) {
+  return callWithToken(
+    token,
+    "getUpdates",
+    {
+      timeout: options.timeout ?? 0,
+      limit: options.limit ?? 100,
+      ...(options.allowed_updates ? { allowed_updates: options.allowed_updates } : {}),
+    },
+    10_000,
+  ).then((response) => response.result as unknown[]);
+}
+
 export function leaveChatWithToken(token: string, chatId: number | string) {
   return callWithToken(token, "leaveChat", { chat_id: chatId });
 }

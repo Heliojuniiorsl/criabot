@@ -63,6 +63,7 @@ import {
   getChatWithToken,
   getChatMemberCountWithToken,
   getChatMemberWithToken,
+  getUpdatesWithToken,
   leaveChatWithToken,
   sendMessageWithToken,
 } from "@/lib/telegram.server";
@@ -70,6 +71,9 @@ import {
 function friendlyVipChatError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error || "");
   const lower = message.toLowerCase();
+  if (lower.includes("can't use getupdates method while webhook is active")) {
+    return "Não consegui listar os grupos porque esse bot já está com webhook ativo em outro serviço. Remova o webhook antigo ou use outro token.";
+  }
   if (lower.includes("bot was kicked")) {
     return "Este bot foi removido desse grupo/canal. Adicione o bot novamente e promova como administrador.";
   }
@@ -86,6 +90,182 @@ function friendlyVipChatError(error: unknown) {
     return "Não consegui consultar esse grupo/canal. Confira se o ID está correto.";
   }
   return "Não consegui verificar esse grupo/canal VIP. Confira se o bot está nele e tente novamente.";
+}
+
+type TelegramChatType = "group" | "supergroup" | "channel" | "private" | null;
+
+type ManagedVipChatPreview = {
+  id: number;
+  title: string;
+  username: string | null;
+  type: TelegramChatType;
+};
+
+type ManagedVipChatInspection = {
+  ok: boolean;
+  chat_id: number;
+  chat: ManagedVipChatPreview | null;
+  bot_status: "creator" | "administrator" | "member" | "restricted" | "left" | "kicked" | null;
+  bot_in_chat: boolean;
+  is_admin: boolean;
+  member_count: number | null;
+  message: string | null;
+};
+
+type ManagedVipChatCandidate = ManagedVipChatInspection & {
+  last_activity_at: string | null;
+};
+
+type TelegramUpdateChat = {
+  id?: unknown;
+  title?: unknown;
+  username?: unknown;
+  type?: unknown;
+};
+
+type TelegramUpdateMessage = {
+  date?: unknown;
+  chat?: TelegramUpdateChat;
+};
+
+type TelegramUpdateMembership = {
+  date?: unknown;
+  chat?: TelegramUpdateChat;
+};
+
+type TelegramUpdate = {
+  message?: TelegramUpdateMessage;
+  edited_message?: TelegramUpdateMessage;
+  channel_post?: TelegramUpdateMessage;
+  edited_channel_post?: TelegramUpdateMessage;
+  my_chat_member?: TelegramUpdateMembership;
+  chat_member?: TelegramUpdateMembership;
+};
+
+function normalizeTelegramChat(chat: TelegramUpdateChat | undefined, date?: unknown) {
+  const id = Number(chat?.id);
+  if (!Number.isInteger(id)) return null;
+  const type = typeof chat?.type === "string" ? chat.type : null;
+  if (type !== "group" && type !== "supergroup" && type !== "channel") return null;
+
+  const title =
+    typeof chat?.title === "string" && chat.title.trim()
+      ? chat.title.trim()
+      : typeof chat?.username === "string" && chat.username.trim()
+        ? `@${chat.username.trim().replace(/^@/, "")}`
+        : `ID ${id}`;
+  const username =
+    typeof chat?.username === "string" && chat.username.trim()
+      ? chat.username.trim().replace(/^@/, "")
+      : null;
+  const numericDate = Number(date);
+  return {
+    id,
+    title,
+    username,
+    type: type as Exclude<TelegramChatType, "private" | null>,
+    last_activity_at: Number.isFinite(numericDate)
+      ? new Date(numericDate * 1000).toISOString()
+      : null,
+  };
+}
+
+function collectChatsFromUpdates(updates: unknown[]) {
+  const chats = new Map<number, ManagedVipChatPreview & { last_activity_at: string | null }>();
+
+  function add(chat: ReturnType<typeof normalizeTelegramChat>) {
+    if (!chat) return;
+    const existing = chats.get(chat.id);
+    if (!existing) {
+      chats.set(chat.id, chat);
+      return;
+    }
+    if (
+      chat.last_activity_at &&
+      (!existing.last_activity_at || chat.last_activity_at > existing.last_activity_at)
+    ) {
+      chats.set(chat.id, { ...existing, ...chat });
+    }
+  }
+
+  for (const update of updates as TelegramUpdate[]) {
+    add(normalizeTelegramChat(update.message?.chat, update.message?.date));
+    add(normalizeTelegramChat(update.edited_message?.chat, update.edited_message?.date));
+    add(normalizeTelegramChat(update.channel_post?.chat, update.channel_post?.date));
+    add(normalizeTelegramChat(update.edited_channel_post?.chat, update.edited_channel_post?.date));
+    add(normalizeTelegramChat(update.my_chat_member?.chat, update.my_chat_member?.date));
+    add(normalizeTelegramChat(update.chat_member?.chat, update.chat_member?.date));
+  }
+
+  return Array.from(chats.values());
+}
+
+async function inspectManagedVipChat(
+  token: string,
+  botUserId: number,
+  chatId: number,
+  seedChat?: ManagedVipChatPreview | null,
+): Promise<ManagedVipChatInspection> {
+  const chat = await getChatWithToken(token, chatId).catch(() => null);
+  const chatPreview = chat
+    ? {
+        id: chat.id,
+        title: chat.title || chat.username || seedChat?.title || String(chatId),
+        username: chat.username || seedChat?.username || null,
+        type: chat.type || seedChat?.type || null,
+      }
+    : seedChat
+      ? {
+          id: seedChat.id,
+          title: seedChat.title,
+          username: seedChat.username,
+          type: seedChat.type,
+        }
+      : null;
+
+  let memberErrorMessage: string | null = null;
+  const member = await getChatMemberWithToken(token, chatId, botUserId).catch((error) => {
+    memberErrorMessage = friendlyVipChatError(error);
+    return null;
+  });
+
+  if (!member) {
+    return {
+      ok: false,
+      chat_id: chatId,
+      chat: chatPreview,
+      bot_status: null,
+      bot_in_chat: false,
+      is_admin: false,
+      member_count: null,
+      message:
+        chatPreview != null
+          ? memberErrorMessage ||
+            "Grupo/canal encontrado, mas o bot não está participando ou não pode ser consultado."
+          : memberErrorMessage || friendlyVipChatError(null),
+    };
+  }
+
+  const botIsInChat = member.status !== "left" && member.status !== "kicked";
+  const botIsAdmin = member.status === "administrator" || member.status === "creator";
+  const memberCount = botIsInChat
+    ? await getChatMemberCountWithToken(token, chatId).catch(() => null)
+    : null;
+
+  return {
+    ok: botIsAdmin,
+    chat_id: chatId,
+    chat: chatPreview,
+    bot_status: member.status,
+    bot_in_chat: botIsInChat,
+    is_admin: botIsAdmin,
+    member_count: memberCount,
+    message: botIsAdmin
+      ? null
+      : botIsInChat
+        ? "Grupo/canal encontrado. O bot está nele, mas precisa ser administrador para entregar o acesso."
+        : "Grupo/canal encontrado, mas o bot não está participando. Adicione o bot e promova como administrador.",
+  };
 }
 
 async function admin() {
@@ -369,80 +549,59 @@ export const validateManagedSalesBotToken = createServerFn({ method: "POST" })
     }
   });
 
-export const verifyManagedSalesBotVipChat = createServerFn({ method: "POST" })
+export const listManagedSalesBotVipCandidates = createServerFn({ method: "POST" })
   .validator(
     z.object({
       token: telegramBotToken,
-      vip_chat_id: z.coerce.number().int().negative("Informe o ID negativo do grupo ou canal VIP"),
     }),
   )
   .handler(async ({ data }) => {
     requireAccountSession();
     const token = data.token.trim();
     const info = await getBotInfoWithToken(token);
-    const chat = await getChatWithToken(token, data.vip_chat_id).catch(() => null);
-    const chatPreview = chat
-      ? {
-          id: chat.id,
-          title: chat.title || chat.username || String(data.vip_chat_id),
-          username: chat.username || null,
-          type: chat.type || null,
-        }
-      : null;
 
-    let memberErrorMessage: string | null = null;
-    const member = await getChatMemberWithToken(token, data.vip_chat_id, Number(info.id)).catch(
-      (error) => {
-        memberErrorMessage = friendlyVipChatError(error);
-        return null;
-      },
-    );
-
-    if (!member) {
-      return {
-        ok: false,
-        chat_id: data.vip_chat_id,
-        chat: chatPreview,
-        bot_status: null,
-        bot_in_chat: false,
-        is_admin: false,
-        member_count: null,
-        message:
-          chatPreview != null
-            ? "Grupo/canal encontrado, mas o bot não está participando ou não pode ser consultado."
-            : memberErrorMessage || friendlyVipChatError(null),
-      };
+    let updates: unknown[];
+    try {
+      updates = await getUpdatesWithToken(token, {
+        limit: 100,
+        timeout: 0,
+        allowed_updates: [
+          "message",
+          "edited_message",
+          "channel_post",
+          "edited_channel_post",
+          "my_chat_member",
+          "chat_member",
+        ],
+      });
+    } catch (error) {
+      throw new Error(friendlyVipChatError(error));
     }
 
-    const botIsInChat = member.status !== "left" && member.status !== "kicked";
-    const botIsAdmin = member.status === "administrator" || member.status === "creator";
-    if (!botIsAdmin) {
-      return {
-        ok: false,
-        chat_id: data.vip_chat_id,
-        chat: chatPreview,
-        bot_status: member.status,
-        bot_in_chat: botIsInChat,
-        is_admin: false,
-        member_count: null,
-        message: botIsInChat
-          ? "Grupo/canal encontrado. O bot está nele, mas precisa ser administrador para entregar o acesso."
-          : "Grupo/canal encontrado, mas o bot não está participando. Adicione o bot e promova como administrador.",
-      };
-    }
-    const memberCount = await getChatMemberCountWithToken(token, data.vip_chat_id).catch(
-      () => null,
+    const chats = collectChatsFromUpdates(updates);
+    const candidates = await Promise.all(
+      chats.map(async (chat): Promise<ManagedVipChatCandidate> => {
+        const inspection = await inspectManagedVipChat(token, Number(info.id), chat.id, chat);
+        return {
+          ...inspection,
+          last_activity_at: chat.last_activity_at,
+        };
+      }),
     );
+
+    candidates.sort((a, b) => {
+      if (a.ok !== b.ok) return a.ok ? -1 : 1;
+      const titleA = a.chat?.title || String(a.chat_id);
+      const titleB = b.chat?.title || String(b.chat_id);
+      return titleA.localeCompare(titleB, "pt-BR");
+    });
 
     return {
       ok: true,
-      chat_id: data.vip_chat_id,
-      chat: chatPreview,
-      bot_status: member.status,
-      bot_in_chat: true,
-      is_admin: true,
-      member_count: memberCount,
-      message: null,
+      candidates,
+      message: candidates.length
+        ? null
+        : "Ainda não encontrei grupos ou canais para esse bot. Adicione o bot ao VIP, envie uma mensagem ou encaminhe uma atividade no grupo/canal e clique em Atualizar lista.",
     };
   });
 

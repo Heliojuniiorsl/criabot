@@ -21,7 +21,7 @@ import {
   UserRound,
   Users,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { BrandMark } from "@/components/BrandMark";
@@ -34,9 +34,9 @@ import {
   createManagedSalesBot,
   getCriaBotLinkStatus,
   getManagedBots,
+  listManagedSalesBotVipCandidates,
   runManagedBotAction,
   validateManagedSalesBotToken,
-  verifyManagedSalesBotVipChat,
 } from "@/lib/api/admin.functions";
 import { getAdminSession, logoutAdminAccount } from "@/lib/api/auth.functions";
 
@@ -88,6 +88,16 @@ type VipVerificationResult = {
   bot_in_chat: boolean;
   is_admin: boolean;
   member_count: number | null;
+  message: string | null;
+};
+
+type VipCandidateResult = VipVerificationResult & {
+  last_activity_at: string | null;
+};
+
+type VipCandidatesResponse = {
+  ok: true;
+  candidates: VipCandidateResult[];
   message: string | null;
 };
 
@@ -149,16 +159,6 @@ function formatTelegramChatType(type: TelegramChatType) {
   if (type === "group") return "Grupo";
   if (type === "private") return "Privado";
   return "Grupo/canal";
-}
-
-function formatBotChatStatus(status: VipVerificationResult["bot_status"]) {
-  if (status === "creator") return "Criador";
-  if (status === "administrator") return "Administrador";
-  if (status === "member") return "Membro";
-  if (status === "restricted") return "Restrito";
-  if (status === "left") return "Fora";
-  if (status === "kicked") return "Removido";
-  return "Não encontrado";
 }
 
 const wizardSteps = [
@@ -351,7 +351,7 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
   const actionFn = useServerFn(runManagedBotAction);
   const createBotFn = useServerFn(createManagedSalesBot);
   const validateTokenFn = useServerFn(validateManagedSalesBotToken);
-  const verifyVipChatFn = useServerFn(verifyManagedSalesBotVipChat);
+  const listVipCandidatesFn = useServerFn(listManagedSalesBotVipCandidates);
   const criaBotLinkStatusFn = useServerFn(getCriaBotLinkStatus);
   const lastAutoValidatedTokenRef = useRef("");
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -372,6 +372,10 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
   const [planPrice, setPlanPrice] = useState("29,90");
   const [planAccessType, setPlanAccessType] = useState<PlanAccessType>("days");
   const [planDurationDays, setPlanDurationDays] = useState("30");
+  const cleanToken = token.trim();
+  const hasToken = cleanToken.length > 0;
+  const tokenHasValidFormat = !hasToken || telegramBotTokenPattern.test(cleanToken);
+  const validatedTokenIsCurrent = Boolean(validatedBot && validatedBot.token === cleanToken);
 
   const sessionQuery = useQuery({
     queryKey: ["admin-session"],
@@ -395,6 +399,15 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
     queryFn: () => criaBotLinkStatusFn() as Promise<CriaBotLinkStatus>,
     enabled: isCreateMode && (step === 1 || step === 2),
     refetchInterval: isCreateMode && (step === 1 || step === 2) ? 4_000 : false,
+    retry: 1,
+  });
+
+  const vipCandidatesQuery = useQuery({
+    queryKey: ["vip-candidates", validatedBot?.telegram_id ?? null],
+    queryFn: () =>
+      listVipCandidatesFn({ data: { token: cleanToken } }) as Promise<VipCandidatesResponse>,
+    enabled: isCreateMode && step === 2 && validatedTokenIsCurrent,
+    staleTime: 5_000,
     retry: 1,
   });
 
@@ -422,32 +435,15 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
         ...result.bot,
         token: variables.token.trim(),
       });
+      setVipChatId("");
+      setVipVerification(null);
+      setVipVerificationError(null);
       toast.success(`Token validado: @${result.bot.username}`);
     },
     onError: (error: any) => {
       const message = error?.message || "Não consegui consultar esse token no Telegram.";
       setValidatedBot(null);
       setValidationError(message);
-      toast.error(message);
-    },
-  });
-
-  const verifyVipChat = useMutation({
-    mutationFn: (data: { token: string; vip_chat_id: number }) =>
-      verifyVipChatFn({ data }) as Promise<VipVerificationResult>,
-    onSuccess: (result) => {
-      setVipVerification(result);
-      setVipVerificationError(result.ok ? null : result.message);
-      if (result.ok) {
-        toast.success("Grupo/canal VIP verificado");
-      } else {
-        toast.error(result.message || "O bot ainda não está pronto nesse grupo/canal.");
-      }
-    },
-    onError: (error: any) => {
-      const message = error?.message || "Não consegui verificar esse grupo/canal VIP.";
-      setVipVerification(null);
-      setVipVerificationError(message);
       toast.error(message);
     },
   });
@@ -480,13 +476,10 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
   const isAdmin = role === "admin";
   const criaBotLinkStatus = criaBotLinkQuery.data;
   const linkedCriaBotUser = criaBotLinkStatus?.linked_user ?? null;
-  const cleanToken = token.trim();
-  const hasToken = cleanToken.length > 0;
-  const tokenHasValidFormat = !hasToken || telegramBotTokenPattern.test(cleanToken);
-  const validatedTokenIsCurrent = Boolean(validatedBot && validatedBot.token === cleanToken);
-  const vipChatIdNumber = Number(vipChatId.trim());
-  const vipChatIdIsValid =
-    /^-?\d+$/.test(vipChatId.trim()) && Number.isInteger(vipChatIdNumber) && vipChatIdNumber < 0;
+  const vipCandidatesData = vipCandidatesQuery.data?.candidates;
+  const vipCandidates = useMemo(() => vipCandidatesData ?? [], [vipCandidatesData]);
+  const vipChatIdNumber = Number(vipChatId);
+  const vipChatIdIsValid = Number.isInteger(vipChatIdNumber) && vipChatIdNumber < 0;
   const vipPreviewIsCurrent =
     Boolean(vipVerification) && vipVerification?.chat_id === vipChatIdNumber;
   const vipVerificationIsCurrent = vipPreviewIsCurrent && Boolean(vipVerification?.ok);
@@ -526,23 +519,15 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
     validateToken.mutate({ token: cleanToken });
   }
 
-  function handleVipChatIdChange(value: string) {
-    setVipChatId(value);
-    setVipVerification(null);
-    setVipVerificationError(null);
-  }
-
-  function handleVerifyVipChat() {
-    if (!validatedTokenIsCurrent) {
-      toast.error("Valide o token do bot antes de verificar o VIP.");
-      setStep(1);
+  function handleSelectVipCandidate(candidate: VipCandidateResult) {
+    setVipChatId(String(candidate.chat_id));
+    setVipVerification(candidate);
+    setVipVerificationError(candidate.ok ? null : candidate.message);
+    if (candidate.ok) {
+      toast.success("VIP selecionado e pronto");
       return;
     }
-    if (!vipChatIdIsValid) {
-      setVipVerificationError("Informe um ID negativo valido antes de verificar.");
-      return;
-    }
-    verifyVipChat.mutate({ token: cleanToken, vip_chat_id: vipChatIdNumber });
+    toast.error(candidate.message || "Promova o bot como administrador para continuar.");
   }
 
   function handleCreateBot() {
@@ -551,12 +536,12 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
       return;
     }
     if (!vipChatIdIsValid) {
-      toast.error("Informe o ID negativo do grupo ou canal VIP.");
+      toast.error("Selecione o grupo ou canal VIP.");
       setStep(2);
       return;
     }
     if (!vipVerificationIsCurrent) {
-      toast.error("Verifique o grupo/canal VIP antes de criar o bot.");
+      toast.error("Selecione um VIP em que o bot esteja como administrador.");
       setStep(2);
       return;
     }
@@ -590,8 +575,8 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
     if (step === 2 && (!vipChatIdIsValid || !vipVerificationIsCurrent)) {
       toast.error(
         !vipChatIdIsValid
-          ? "Informe um ID negativo de grupo ou canal, por exemplo -1001234567890."
-          : "Clique em verificar e confirme que o bot é administrador do VIP.",
+          ? "Selecione o grupo ou canal VIP."
+          : "Promova o bot como administrador do VIP para continuar.",
       );
       return;
     }
@@ -616,7 +601,7 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
       return "Vincule seu Telegram ao CriaBot antes de continuar.";
     }
     if (targetStep >= 3 && (!vipChatIdIsValid || !vipVerificationIsCurrent)) {
-      return "Verifique o grupo ou canal VIP antes de continuar.";
+      return "Selecione um VIP em que o bot esteja como administrador.";
     }
     if (targetStep >= 4 && !planStepIsValid) {
       return "Complete a primeira mensagem e o plano antes de revisar.";
@@ -651,6 +636,16 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
 
     return () => clearTimeout(timeout);
   }, [cleanToken, isCreateMode, step, validatedTokenIsCurrent, validateToken]);
+
+  useEffect(() => {
+    if (!vipChatId) return;
+    const updatedCandidate = vipCandidates.find(
+      (candidate) => String(candidate.chat_id) === vipChatId,
+    );
+    if (!updatedCandidate) return;
+    setVipVerification(updatedCandidate);
+    setVipVerificationError(updatedCandidate.ok ? null : updatedCandidate.message);
+  }, [vipCandidates, vipChatId]);
 
   return (
     <main
@@ -1081,80 +1076,145 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                         Passo 2: configurar grupo/canal VIP
                       </h3>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        O bot precisa ser administrador desse grupo ou canal para entregar o convite
-                        após o pagamento.
+                        Escolha um grupo ou canal onde o bot já foi adicionado. Ele precisa estar
+                        como administrador para liberar o próximo passo.
                       </p>
                     </div>
                     <div className="rounded-2xl border bg-[#F5F5F3] p-4">
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-                            <MessageSquareText className="h-4 w-4" />
-                            Detectar ID pelo encaminhamento
+                            <Users className="h-4 w-4" />
+                            Grupos e canais detectados pelo bot
                           </div>
                           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                            Encaminhe uma mensagem do grupo ou canal VIP para o bot oficial. Ele vai
-                            responder com o ID e um botão para copiar. Depois cole o ID no campo
-                            abaixo.
+                            Adicione o bot <strong>@{validatedBot?.username}</strong> ao grupo ou
+                            canal VIP, envie uma mensagem ou gere uma atividade nele e clique em
+                            Atualizar lista.
                           </p>
                         </div>
-                        {criaBotLinkStatus?.link_url && (
-                          <Button asChild className="rounded-full px-4 lg:min-w-[180px]">
-                            <a href={criaBotLinkStatus.link_url} target="_blank" rel="noreferrer">
-                              <ExternalLink className="mr-2 h-4 w-4" />
-                              Abrir bot oficial
-                            </a>
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="vip_chat_id">ID do grupo ou canal VIP</Label>
-                      <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto]">
-                        <Input
-                          id="vip_chat_id"
-                          value={vipChatId}
-                          onChange={(event) => handleVipChatIdChange(event.target.value)}
-                          placeholder="-1001234567890"
-                          inputMode="numeric"
-                          required
-                          className={
-                            vipChatId && !vipChatIdIsValid ? "border-destructive" : undefined
-                          }
-                        />
                         <Button
                           type="button"
                           variant="outline"
-                          onClick={handleVerifyVipChat}
-                          disabled={
-                            !validatedTokenIsCurrent ||
-                            !vipChatIdIsValid ||
-                            verifyVipChat.isPending ||
-                            vipVerificationIsCurrent
-                          }
+                          className="rounded-full px-4 lg:min-w-[170px]"
+                          onClick={() => void vipCandidatesQuery.refetch()}
+                          disabled={!validatedTokenIsCurrent || vipCandidatesQuery.isFetching}
                         >
-                          {verifyVipChat.isPending ? (
+                          {vipCandidatesQuery.isFetching ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          ) : vipVerificationIsCurrent ? (
-                            <CheckCircle2 className="mr-2 h-4 w-4" />
                           ) : (
-                            <ShieldCheck className="mr-2 h-4 w-4" />
+                            <RotateCw className="mr-2 h-4 w-4" />
                           )}
-                          {vipVerificationIsCurrent ? "VIP verificado" : "Verificar VIP"}
+                          Atualizar lista
                         </Button>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Depois de preencher o ID, adicione o bot que você está criando ao VIP e
-                        promova como administrador.
-                      </p>
-                      {vipChatId && !vipChatIdIsValid && (
-                        <p className="flex items-center gap-1 text-xs font-medium text-destructive">
-                          <AlertCircle className="h-3.5 w-3.5" />
-                          Informe um ID negativo válido.
-                        </p>
-                      )}
                     </div>
+
+                    {vipCandidatesQuery.isLoading && (
+                      <div className="rounded-2xl border bg-card p-5 text-sm text-muted-foreground">
+                        <Loader2 className="mr-2 inline h-4 w-4 animate-spin text-primary" />
+                        Buscando grupos e canais onde o bot apareceu...
+                      </div>
+                    )}
+
+                    {vipCandidatesQuery.isError && (
+                      <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                          <div>
+                            <p className="font-semibold">Não consegui buscar os grupos.</p>
+                            <p className="mt-1">
+                              {(vipCandidatesQuery.error as Error)?.message ||
+                                "Verifique o token e tente novamente."}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {!vipCandidatesQuery.isLoading &&
+                      !vipCandidatesQuery.isError &&
+                      vipCandidates.length === 0 && (
+                        <div className="rounded-2xl border border-dashed bg-card p-5 text-sm text-muted-foreground">
+                          <p className="font-semibold text-foreground">
+                            Nenhum VIP apareceu ainda.
+                          </p>
+                          <p className="mt-1">
+                            O Telegram só entrega ao painel grupos/canais que geraram atualização
+                            para esse bot. Adicione o bot no VIP, promova como administrador, envie
+                            uma mensagem no grupo/canal e clique em Atualizar lista.
+                          </p>
+                          {vipCandidatesQuery.data?.message && (
+                            <p className="mt-3 text-xs">{vipCandidatesQuery.data.message}</p>
+                          )}
+                        </div>
+                      )}
+
+                    {vipCandidates.length > 0 && (
+                      <div className="space-y-3">
+                        <p className="text-sm font-semibold">Selecione qual será o VIP</p>
+                        <div className="grid gap-3">
+                          {vipCandidates.map((candidate) => {
+                            const selected = vipVerification?.chat_id === candidate.chat_id;
+                            const statusLabel = candidate.ok
+                              ? "Administrador"
+                              : candidate.bot_in_chat
+                                ? "Precisa ser admin"
+                                : "Bot fora";
+                            return (
+                              <button
+                                key={candidate.chat_id}
+                                type="button"
+                                onClick={() => handleSelectVipCandidate(candidate)}
+                                className={`rounded-2xl border p-4 text-left transition hover:border-primary/60 hover:bg-primary/5 ${
+                                  selected ? "border-primary bg-primary/5" : "bg-card"
+                                }`}
+                              >
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      {candidate.ok ? (
+                                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                      ) : (
+                                        <AlertCircle className="h-4 w-4 text-amber-600" />
+                                      )}
+                                      <p className="truncate font-semibold">
+                                        {candidate.chat?.title ||
+                                          `Grupo/canal ${candidate.chat_id}`}
+                                      </p>
+                                    </div>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                      {formatTelegramChatType(candidate.chat?.type ?? null)}
+                                      {candidate.chat?.username
+                                        ? ` · @${candidate.chat.username}`
+                                        : ` · ID ${candidate.chat_id}`}
+                                      {candidate.member_count != null
+                                        ? ` · ${candidate.member_count} membro(s)`
+                                        : ""}
+                                    </p>
+                                    {!candidate.ok && candidate.message && (
+                                      <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
+                                        {candidate.message}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <span
+                                    className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                                      candidate.ok
+                                        ? "bg-emerald-100 text-emerald-700"
+                                        : "bg-amber-100 text-amber-800"
+                                    }`}
+                                  >
+                                    {statusLabel}
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
                     {vipPreviewIsCurrent && vipVerification && (
                       <div
                         className={`rounded-2xl border p-4 text-sm ${
@@ -1163,76 +1223,25 @@ export function BotsPanelContent({ embedded = false, mode = "list" }: BotsPanelC
                             : "border-amber-200 bg-amber-50 text-amber-900"
                         }`}
                       >
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="flex min-w-0 items-start gap-3">
-                            <div
-                              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${
-                                vipVerification.ok
-                                  ? "bg-emerald-100 text-emerald-700"
-                                  : "bg-amber-100 text-amber-700"
-                              }`}
-                            >
-                              {vipVerification.ok ? (
-                                <CheckCircle2 className="h-5 w-5" />
-                              ) : (
-                                <AlertCircle className="h-5 w-5" />
-                              )}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="truncate font-semibold">
-                                {vipVerification.chat?.title || "Grupo/canal encontrado"}
-                              </p>
-                              <p className="mt-1 text-xs opacity-80">
-                                {formatTelegramChatType(vipVerification.chat?.type ?? null)} - ID{" "}
-                                {vipVerification.chat_id}
-                                {vipVerification.chat?.username
-                                  ? ` - @${vipVerification.chat.username}`
-                                  : ""}
-                                {vipVerification.member_count != null
-                                  ? ` - ${vipVerification.member_count} membro(s)`
-                                  : ""}
-                              </p>
-                            </div>
-                          </div>
-                          <span
-                            className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                              vipVerification.ok
-                                ? "bg-emerald-600 text-white"
-                                : "bg-amber-200 text-amber-950"
-                            }`}
-                          >
-                            {vipVerification.ok ? "Pronto" : "Precisa ajustar"}
-                          </span>
-                        </div>
-
-                        <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                          <div className="rounded-2xl bg-white/70 p-3">
-                            <p className="text-xs opacity-70">Grupo/canal</p>
-                            <p className="mt-1 font-semibold">
-                              {vipVerification.chat ? "Encontrado" : "Não encontrado"}
+                        <div className="flex items-start gap-3">
+                          {vipVerification.ok ? (
+                            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+                          ) : (
+                            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                          )}
+                          <div>
+                            <p className="font-semibold">
+                              {vipVerification.ok
+                                ? "VIP pronto para receber pagamentos"
+                                : "Ainda falta permissão de administrador"}
                             </p>
-                          </div>
-                          <div className="rounded-2xl bg-white/70 p-3">
-                            <p className="text-xs opacity-70">Bot no grupo/canal</p>
-                            <p className="mt-1 font-semibold">
-                              {vipVerification.bot_in_chat ? "Sim" : "Não"}
-                            </p>
-                          </div>
-                          <div className="rounded-2xl bg-white/70 p-3">
-                            <p className="text-xs opacity-70">Permissao do bot</p>
-                            <p className="mt-1 font-semibold">
-                              {vipVerification.is_admin
-                                ? "Administrador"
-                                : formatBotChatStatus(vipVerification.bot_status)}
+                            <p className="mt-1 text-xs leading-relaxed">
+                              {vipVerification.ok
+                                ? "Esse grupo/canal será usado para gerar o convite após o pagamento."
+                                : "Promova o bot como administrador nesse grupo/canal e clique em Atualizar lista."}
                             </p>
                           </div>
                         </div>
-
-                        {vipVerification.message && !vipVerification.ok && (
-                          <p className="mt-3 rounded-2xl bg-white/70 p-3 text-xs font-medium">
-                            {vipVerification.message}
-                          </p>
-                        )}
                       </div>
                     )}
                     {vipVerificationError && !vipPreviewIsCurrent && (
